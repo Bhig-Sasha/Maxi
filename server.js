@@ -46,7 +46,7 @@ app.use(helmet({
 
 // CORS - Allow Vercel frontend
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || 
-    'http://localhost:3000,http://localhost:3001,https://maxi-flair.vercel.app,https://maxiflair.vercel.app')
+    'https://maxi-flair.vercel.app,https://maxiflair.vercel.app')
     .split(',')
     .map(origin => origin.trim());
 
