@@ -1,11 +1,9 @@
 // ============================================
-// MAXIFLAIR.NG - Complete Server (Guest Checkout Only)
+// MAXIFLAIR.NG - Vercel Serverless API
 // ============================================
 
 const express = require('express');
-const path = require('path');
 const session = require('express-session');
-const bcrypt = require('bcryptjs');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
@@ -15,13 +13,11 @@ const crypto = require('crypto');
 require('dotenv').config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
 // ============================================
 // SUPABASE CONFIGURATION
 // ============================================
 
-// Initialize Supabase client
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
@@ -53,13 +49,12 @@ const CONSTANTS = {
 // MIDDLEWARE
 // ============================================
 
-// Security and logging middleware
 app.use(helmet({
     contentSecurityPolicy: false,
 }));
 app.use(cors({
     origin: process.env.NODE_ENV === 'production' 
-        ? ['https://your-render-app.onrender.com', 'http://localhost:3000']
+        ? ['https://maxi-flair.vercel.app', 'https://maxiflair.vercel.app', 'http://localhost:3000']
         : '*',
     credentials: true
 }));
@@ -67,27 +62,19 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(morgan('dev'));
 
-// Session configuration - Use PostgreSQL for session storage in production
+// Session configuration for Vercel (in-memory, not persistent)
 app.use(session({
     secret: process.env.SESSION_SECRET || 'maxiflair-super-secret-key-2025',
     resave: false,
     saveUninitialized: false,
     cookie: {
         secure: process.env.NODE_ENV === 'production',
-        maxAge: 1000 * 60 * 60 * 24, // 24 hours
+        maxAge: 1000 * 60 * 60 * 24,
         sameSite: 'lax'
     }
 }));
 
-// Make session data available to all views
-app.use((req, res, next) => {
-    res.locals.user = req.session.user || null;
-    res.locals.cartCount = req.session.cart ? req.session.cart.length : 0;
-    res.locals.wishlistCount = req.session.wishlist ? req.session.wishlist.length : 0;
-    next();
-});
-
-// Generate guest ID for non-logged-in users
+// Generate guest ID
 const getGuestId = (req) => {
     if (!req.session.guestId) {
         req.session.guestId = 'guest_' + crypto.randomBytes(16).toString('hex');
@@ -96,7 +83,7 @@ const getGuestId = (req) => {
 };
 
 // ============================================
-// VALIDATION MIDDLEWARE
+// VALIDATION
 // ============================================
 
 const validate = (req, res, next) => {
@@ -131,37 +118,10 @@ const validations = {
 };
 
 // ============================================
-// ERROR HANDLER
+// MODELS
 // ============================================
 
-const errorHandler = (err, req, res, next) => {
-    console.error('Error:', err);
-    if (err.code === '23505') {
-        return res.status(400).json({
-            success: false,
-            message: 'Duplicate entry. This record already exists.'
-        });
-    }
-    if (err.code === '23503') {
-        return res.status(400).json({
-            success: false,
-            message: 'Invalid reference. The related record does not exist.'
-        });
-    }
-    const status = err.status || 500;
-    const message = err.message || 'Internal Server Error';
-    res.status(status).json({
-        success: false,
-        message: message,
-        ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-    });
-};
-
-// ============================================
-// MODELS (Supabase Version)
-// ============================================
-
-// User Model - Simplified for Guest Checkout
+// Guest User Model
 const User = {
     createGuest: async (userData) => {
         const { fullName, email, phone } = userData;
@@ -185,16 +145,6 @@ const User = {
             .from('users')
             .select('*')
             .eq('email', email)
-            .maybeSingle();
-        
-        if (error) throw error;
-        return data;
-    },
-    findById: async (id) => {
-        const { data, error } = await supabase
-            .from('users')
-            .select('id, full_name, email, phone, gender, date_of_birth, is_premium, member_since, is_active, is_guest, created_at')
-            .eq('id', id)
             .maybeSingle();
         
         if (error) throw error;
@@ -385,7 +335,6 @@ const Cart = {
         
         if (error) throw error;
         
-        // Get primary images for each product
         for (let item of data) {
             const { data: image } = await supabase
                 .from('product_images')
@@ -403,7 +352,6 @@ const Cart = {
         return data;
     },
     addItem: async (cartId, productId, variantId, quantity) => {
-        // Check if product exists and is in stock
         const { data: product, error: productError } = await supabase
             .from('products')
             .select('id, in_stock')
@@ -414,7 +362,6 @@ const Cart = {
         if (!product) throw new Error('Product not found');
         if (!product.in_stock) throw new Error('Product is out of stock');
         
-        // Check if item already exists in cart
         let query = supabase
             .from('cart_items')
             .select('id, quantity')
@@ -432,7 +379,6 @@ const Cart = {
         if (existingError) throw existingError;
         
         if (existing) {
-            // Update quantity
             const { error: updateError } = await supabase
                 .from('cart_items')
                 .update({ 
@@ -443,7 +389,6 @@ const Cart = {
             
             if (updateError) throw updateError;
         } else {
-            // Insert new item
             const { error: insertError } = await supabase
                 .from('cart_items')
                 .insert([{
@@ -516,7 +461,6 @@ const Wishlist = {
         
         if (error) throw error;
         
-        // Get primary images for each product
         for (let item of data) {
             const { data: image } = await supabase
                 .from('product_images')
@@ -534,7 +478,6 @@ const Wishlist = {
         return data;
     },
     toggleGuest: async (sessionId, productId) => {
-        // Check if product exists
         const { data: product, error: productError } = await supabase
             .from('products')
             .select('id')
@@ -545,7 +488,6 @@ const Wishlist = {
         if (productError) throw productError;
         if (!product) throw new Error('Product not found');
         
-        // Check if already in wishlist
         const { data: existing, error: existingError } = await supabase
             .from('wishlist')
             .select('id')
@@ -556,7 +498,6 @@ const Wishlist = {
         if (existingError) throw existingError;
         
         if (existing) {
-            // Remove from wishlist
             await supabase
                 .from('wishlist')
                 .delete()
@@ -564,7 +505,6 @@ const Wishlist = {
             
             return { action: 'removed', message: 'Removed from wishlist' };
         } else {
-            // Add to wishlist
             await supabase
                 .from('wishlist')
                 .insert([{
@@ -593,13 +533,11 @@ const Order = {
         const { fullName, email, phone, address } = guestData;
         const { shippingCost = 0, discount = 0 } = orderData;
         
-        // Get or create user
         let user = await User.findByEmail(email);
         if (!user) {
             user = await User.createGuest({ fullName, email, phone });
         }
         
-        // Add address if provided
         let addressId = null;
         if (address) {
             const addrResult = await User.addAddress(user.id, {
@@ -615,7 +553,6 @@ const Order = {
             addressId = addrResult.id;
         }
         
-        // Get guest cart
         const guestId = orderData.guestId;
         const { data: guestCart, error: guestError } = await supabase
             .from('cart')
@@ -631,7 +568,6 @@ const Order = {
         
         if (items.length === 0) throw new Error('Cart is empty');
         
-        // Create order
         const subtotal = items.reduce((sum, item) => sum + (item.effective_price * item.quantity), 0);
         const tax = subtotal * CONSTANTS.TAX_RATE;
         const total = subtotal + shippingCost + tax - discount;
@@ -672,7 +608,6 @@ const Order = {
             
             if (itemError) throw itemError;
             
-            // Update product stock
             const { data: product } = await supabase
                 .from('products')
                 .select('stock_quantity')
@@ -689,13 +624,11 @@ const Order = {
                 .eq('id', item.product_id);
         }
         
-        // Clear guest cart
         await Cart.clear(guestCartId);
         
         return { order, user };
     },
     getOrderById: async (orderId, email) => {
-        // First find user by email
         const user = await User.findByEmail(email);
         if (!user) return null;
         
@@ -743,7 +676,6 @@ const Order = {
 // CONTROLLERS
 // ============================================
 
-// Product Controllers
 const productController = {
     getAllProducts: async (req, res) => {
         try {
@@ -762,7 +694,6 @@ const productController = {
             });
         }
     },
-
     getProductById: async (req, res) => {
         try {
             const { id } = req.params;
@@ -785,25 +716,6 @@ const productController = {
             });
         }
     },
-
-    getProductsByCategory: async (req, res) => {
-        try {
-            const { category } = req.params;
-            const products = await Product.findAll({ category });
-            res.json({
-                success: true,
-                products,
-                count: products.length
-            });
-        } catch (error) {
-            console.error('Get products by category error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Failed to fetch products'
-            });
-        }
-    },
-
     searchProducts: async (req, res) => {
         try {
             const { q } = req.query;
@@ -828,7 +740,6 @@ const productController = {
             });
         }
     },
-
     getProductReviews: async (req, res) => {
         try {
             const { id } = req.params;
@@ -845,7 +756,6 @@ const productController = {
             });
         }
     },
-
     addReview: async (req, res) => {
         try {
             const { id } = req.params;
@@ -858,10 +768,8 @@ const productController = {
                 });
             }
             
-            // Find or create user
             let user = await User.findByEmail(email);
             if (!user) {
-                // Create a minimal user for review purposes
                 const { data, error } = await supabase
                     .from('users')
                     .insert([{
@@ -895,7 +803,6 @@ const productController = {
     }
 };
 
-// Cart Controllers - Guest Only
 const cartController = {
     getCart: async (req, res) => {
         try {
@@ -923,7 +830,6 @@ const cartController = {
             });
         }
     },
-
     addToCart: async (req, res) => {
         try {
             const { productId, variantId, quantity = 1 } = req.body;
@@ -942,7 +848,6 @@ const cartController = {
             });
         }
     },
-
     updateCartItem: async (req, res) => {
         try {
             const { productId, quantity } = req.body;
@@ -967,7 +872,6 @@ const cartController = {
             });
         }
     },
-
     removeFromCart: async (req, res) => {
         try {
             const { productId } = req.params;
@@ -986,7 +890,6 @@ const cartController = {
             });
         }
     },
-
     clearCart: async (req, res) => {
         try {
             const guestId = getGuestId(req);
@@ -1006,7 +909,6 @@ const cartController = {
     }
 };
 
-// Wishlist Controllers - Guest Only
 const wishlistController = {
     getWishlist: async (req, res) => {
         try {
@@ -1026,7 +928,6 @@ const wishlistController = {
             });
         }
     },
-
     toggleWishlist: async (req, res) => {
         try {
             const { productId } = req.body;
@@ -1046,7 +947,6 @@ const wishlistController = {
             });
         }
     },
-
     removeFromWishlist: async (req, res) => {
         try {
             const { productId } = req.params;
@@ -1066,7 +966,6 @@ const wishlistController = {
     }
 };
 
-// Order Controllers - Guest Only
 const orderController = {
     createGuestOrder: async (req, res) => {
         try {
@@ -1100,7 +999,6 @@ const orderController = {
             });
         }
     },
-
     getOrderById: async (req, res) => {
         try {
             const { id } = req.params;
@@ -1133,7 +1031,6 @@ const orderController = {
             });
         }
     },
-
     getOrdersByEmail: async (req, res) => {
         try {
             const { email } = req.query;
@@ -1162,10 +1059,9 @@ const orderController = {
 };
 
 // ============================================
-// ADMIN ROUTES - About Page Content
+// ADMIN ROUTES
 // ============================================
 
-// Get about page content
 app.get('/api/admin/about-content', async (req, res) => {
     try {
         const { data, error } = await supabase
@@ -1183,7 +1079,6 @@ app.get('/api/admin/about-content', async (req, res) => {
                 content: data.content
             });
         } else {
-            // Return default content if none exists
             const defaultContent = {
                 hero: {
                     title: 'Our Story',
@@ -1308,7 +1203,6 @@ app.get('/api/admin/about-content', async (req, res) => {
     }
 });
 
-// Update about page content
 app.put('/api/admin/about-content', async (req, res) => {
     try {
         const { content } = req.body;
@@ -1320,7 +1214,6 @@ app.put('/api/admin/about-content', async (req, res) => {
             });
         }
         
-        // Check if content exists
         const { data: existing, error: checkError } = await supabase
             .from('about_content')
             .select('id')
@@ -1331,7 +1224,6 @@ app.put('/api/admin/about-content', async (req, res) => {
         
         let result;
         if (existing) {
-            // Update existing
             result = await supabase
                 .from('about_content')
                 .update({ 
@@ -1342,7 +1234,6 @@ app.put('/api/admin/about-content', async (req, res) => {
                 .select('*')
                 .single();
         } else {
-            // Insert new
             result = await supabase
                 .from('about_content')
                 .insert([{ 
@@ -1371,119 +1262,48 @@ app.put('/api/admin/about-content', async (req, res) => {
 });
 
 // ============================================
-// ROUTES - Guest Only
+// ROUTES
 // ============================================
 
-// Product Routes (Public)
 app.get('/api/products', productController.getAllProducts);
 app.get('/api/products/search', productController.searchProducts);
-app.get('/api/products/category/:category', productController.getProductsByCategory);
 app.get('/api/products/:id', productController.getProductById);
 app.get('/api/products/:id/reviews', productController.getProductReviews);
 app.post('/api/products/:id/reviews', productController.addReview);
 
-// Cart Routes (Guest Only)
 app.get('/api/cart', cartController.getCart);
 app.post('/api/cart/add', cartController.addToCart);
 app.put('/api/cart/update', cartController.updateCartItem);
 app.delete('/api/cart/remove/:productId', cartController.removeFromCart);
 app.delete('/api/cart/clear', cartController.clearCart);
 
-// Wishlist Routes (Guest Only)
 app.get('/api/wishlist', wishlistController.getWishlist);
 app.post('/api/wishlist/toggle', wishlistController.toggleWishlist);
 app.delete('/api/wishlist/remove/:productId', wishlistController.removeFromWishlist);
 
-// Order Routes (Guest Only)
 app.post('/api/orders/guest', validations.guestOrder, orderController.createGuestOrder);
 app.get('/api/orders/track', orderController.getOrderById);
 app.get('/api/orders/email', orderController.getOrdersByEmail);
 
 // ============================================
-// SERVE STATIC HTML PAGES
+// ERROR HANDLER
 // ============================================
 
-// Serve static files from public directory
-app.use(express.static(path.join(__dirname, 'public')));
-
-// HTML Routes
-const htmlRoutes = [
-    { path: '/', file: 'index.html' },
-    { path: '/shop', file: 'shop.html' },
-    { path: '/about', file: 'about.html' },
-    { path: '/wishlist', file: 'wishlist.html' },
-    { path: '/contact', file: 'contact.html' },
-    { path: '/track-order', file: 'track-order.html' },
-    { path: '/privacy', file: 'privacy.html' },
-    { path: '/terms', file: 'terms.html' }
-];
-
-htmlRoutes.forEach(route => {
-    app.get(route.path, (req, res) => {
-        res.sendFile(path.join(__dirname, 'public', route.file));
+const errorHandler = (err, req, res, next) => {
+    console.error('Error:', err);
+    const status = err.status || 500;
+    const message = err.message || 'Internal Server Error';
+    res.status(status).json({
+        success: false,
+        message: message,
+        ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
     });
-});
+};
 
-// Product detail route
-app.get('/product/:id', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'product.html'));
-});
-
-// Cart route
-app.get('/cart', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'cart.html'));
-});
-
-// Checkout route
-app.get('/checkout', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'checkout.html'));
-});
-
-// Admin route for about page editing
-app.get('/admin-about', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'admin-about.html'));
-});
-
-// ============================================
-// ERROR HANDLING
-// ============================================
-
-// 404 handler
-app.use((req, res) => {
-    res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
-});
-
-// Global error handler
 app.use(errorHandler);
 
 // ============================================
-// SERVER START
+// EXPORT FOR VERCEL
 // ============================================
 
-const startServer = async () => {
-    try {
-        // Test Supabase connection
-        const { data, error } = await supabase.from('products').select('count').limit(1);
-        if (error) {
-            console.error('❌ Supabase connection error:', error.message);
-            console.log('⚠️  Please check your Supabase credentials in .env file');
-            console.log('   Required: SUPABASE_URL and SUPABASE_ANON_KEY');
-            process.exit(1);
-        }
-        
-        console.log('✅ Connected to Supabase database');
-
-        // Start server
-        app.listen(PORT, () => {
-            console.log(`🚀 MAXIFLAIR.NG Server running on http://localhost:${PORT}`);
-            console.log(`📦 Environment: ${process.env.NODE_ENV || 'development'}`);
-            console.log('👤 Guest checkout only - no login required!');
-            console.log('🛍️  Shop with your email and track orders easily');
-        });
-    } catch (err) {
-        console.error('❌ Server startup error:', err.message);
-        process.exit(1);
-    }
-};
-
-startServer();
+module.exports = app;

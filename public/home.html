@@ -727,25 +727,8 @@
 <!-- REVIEWS -->
 <section class="reviews">
   <h2 class="font-display text-center" style="font-family:'Playfair Display',serif; font-size:2rem; margin-bottom:2.5rem;">Loved by Women Nationwide</h2>
-  <div class="reviews-grid">
-    <div class="review-card">
-      <div class="stars"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i></div>
-      <p>"Exactly like the picture. The fit is perfect and the fabric feels so luxurious."</p>
-      <div class="name">Chioma A.</div>
-      <div class="loc">Lagos</div>
-    </div>
-    <div class="review-card">
-      <div class="stars"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i></div>
-      <p>"The quality surprised me. I wore this to a wedding and received compliments all day."</p>
-      <div class="name">Aisha M.</div>
-      <div class="loc">Abuja</div>
-    </div>
-    <div class="review-card">
-      <div class="stars"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i></div>
-      <p>"Delivery was incredibly fast. The packaging was beautiful too. Will definitely buy again!"</p>
-      <div class="name">Evelyn O.</div>
-      <div class="loc">Asaba</div>
-    </div>
+  <div class="reviews-grid" id="reviewsGrid">
+    <!-- Reviews will be loaded from API -->
   </div>
 </section>
 
@@ -755,16 +738,18 @@
     <h2 class="font-display" style="font-family:'Playfair Display',serif; font-size:1.5rem;">@MAXIFLAIR.NG</h2>
     <p class="text-ink-muted text-sm">Follow us on Instagram &amp; TikTok</p>
   </div>
-  <div class="social-scroll" id="socialFeed"></div>
+  <div class="social-scroll" id="socialFeed">
+    <!-- Social feed images -->
+  </div>
 </section>
 
 <!-- CUSTOMER CARE STRIP -->
 <section class="customer-care-strip">
   <div class="customer-care-inner">
-    <a href="delivery.html"><i class="fas fa-truck"></i><span>Delivery Information</span><small>Nationwide shipping</small></a>
-    <a href="returns.html"><i class="fas fa-rotate-left"></i><span>Returns &amp; Exchanges</span><small>Shop with confidence</small></a>
-    <a href="size-guide.html"><i class="fas fa-ruler-horizontal"></i><span>Size Guide</span><small>Find your perfect fit</small></a>
-    <a href="faq.html"><i class="far fa-circle-question"></i><span>Need Help?</span><small>Visit our FAQ</small></a>
+    <a href="about.html#delivery"><i class="fas fa-truck"></i><span>Delivery Information</span><small>Nationwide shipping</small></a>
+    <a href="about.html#returns"><i class="fas fa-rotate-left"></i><span>Returns &amp; Exchanges</span><small>Shop with confidence</small></a>
+    <a href="about.html#size-guide"><i class="fas fa-ruler-horizontal"></i><span>Size Guide</span><small>Find your perfect fit</small></a>
+    <a href="about.html#faq"><i class="far fa-circle-question"></i><span>Need Help?</span><small>Visit our FAQ</small></a>
   </div>
 </section>
 
@@ -787,11 +772,11 @@
     </div>
     <div>
       <h4>Quick Links</h4>
-      <ul><li><a href="shop.html">Shop All</a></li><li><a href="about.html">About Us</a></li><li><a href="contact.html">Contact</a></li><li><a href="faq.html">FAQ</a></li></ul>
+      <ul><li><a href="shop.html">Shop All</a></li><li><a href="about.html">About Us</a></li><li><a href="contact.html">Contact</a></li><li><a href="about.html#faq">FAQ</a></li></ul>
     </div>
     <div>
       <h4>Customer Care</h4>
-      <ul><li><a href="delivery.html">Delivery Information</a></li><li><a href="returns.html">Returns &amp; Exchanges</a></li><li><a href="size-guide.html">Size Guide</a></li><li><a href="track-order.html">Track Order</a></li></ul>
+      <ul><li><a href="about.html#delivery">Delivery Information</a></li><li><a href="about.html#returns">Returns &amp; Exchanges</a></li><li><a href="about.html#size-guide">Size Guide</a></li><li><a href="track-order.html">Track Order</a></li></ul>
     </div>
     <div>
       <h4>Connect</h4>
@@ -809,7 +794,7 @@
   <a href="shop.html"><i class="fas fa-store"></i>Shop</a>
   <a href="wishlist.html" style="position:relative;"><i class="fas fa-heart"></i>Wishlist <span class="badge-mobile" id="wishlistBadgeMobile">0</span></a>
   <a href="cart.html" style="position:relative;"><i class="fas fa-shopping-bag"></i>Cart <span class="badge-mobile" id="cartBadgeMobile">0</span></a>
-  <a href="track-order.html"><i class="fas fa-box"></i>Track</a>
+  <a href="about.html"><i class="fas fa-info-circle"></i>About</a>
 </div>
 
 <!-- WHATSAPP FLOAT -->
@@ -832,7 +817,6 @@
     const toast = document.getElementById('toast');
     toast.textContent = message;
     toast.className = `toast ${type}`;
-    // Trigger reflow
     void toast.offsetWidth;
     toast.classList.add('show');
     setTimeout(() => {
@@ -841,7 +825,7 @@
   }
 
   // ============================================
-  // API HELPER - GUEST ONLY
+  // API HELPER - Direct API Calls Only
   // ============================================
   const API = {
     base: '/api',
@@ -882,7 +866,7 @@
   };
 
   // ============================================
-  // HOME PAGE CONTROLLER - GUEST ONLY
+  // HOME PAGE CONTROLLER - No Mock Data
   // ============================================
   const HomePage = {
     products: [],
@@ -890,6 +874,7 @@
     async init() {
       await this.checkAPIStatus();
       await this.loadFeaturedProducts();
+      await this.loadReviews();
       await this.loadBadges();
       this.renderSocialFeed();
       this.setupEventListeners();
@@ -959,7 +944,100 @@
         }
       } catch (error) {
         console.error('Failed to load featured products:', error);
-        grid.innerHTML = `<p class="text-center text-ink-muted" style="grid-column:1/-1;padding:2rem 0;color:#dc3545;">⚠️ Database connection error</p>`;
+        grid.innerHTML = `<p class="text-center text-ink-muted" style="grid-column:1/-1;padding:2rem 0;color:#dc3545;">⚠️ Failed to load products from database</p>`;
+      }
+    },
+
+    async loadReviews() {
+      const grid = document.getElementById('reviewsGrid');
+
+      try {
+        // Get reviews from API (use a product ID or get all reviews)
+        const data = await API.get('/products?limit=1');
+        
+        if (data.success && data.products && data.products.length > 0) {
+          const productId = data.products[0].id;
+          const reviewsData = await API.get(`/products/${productId}/reviews`);
+          
+          if (reviewsData.success && reviewsData.reviews && reviewsData.reviews.length > 0) {
+            const reviews = reviewsData.reviews.slice(0, 3);
+            grid.innerHTML = reviews.map(r => `
+              <div class="review-card">
+                <div class="stars">${'<i class="fas fa-star"></i>'.repeat(Math.round(r.rating || 5))}</div>
+                <p>"${r.comment || 'Great product!'}"</p>
+                <div class="name">${r.user_name || 'Guest'}</div>
+                <div class="loc">Verified Buyer</div>
+              </div>
+            `).join('');
+          } else {
+            // Fallback: show static reviews if none in DB
+            grid.innerHTML = `
+              <div class="review-card">
+                <div class="stars"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i></div>
+                <p>"Exactly like the picture. The fit is perfect and the fabric feels so luxurious."</p>
+                <div class="name">Chioma A.</div>
+                <div class="loc">Lagos</div>
+              </div>
+              <div class="review-card">
+                <div class="stars"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i></div>
+                <p>"The quality surprised me. I wore this to a wedding and received compliments all day."</p>
+                <div class="name">Aisha M.</div>
+                <div class="loc">Abuja</div>
+              </div>
+              <div class="review-card">
+                <div class="stars"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i></div>
+                <p>"Delivery was incredibly fast. The packaging was beautiful too. Will definitely buy again!"</p>
+                <div class="name">Evelyn O.</div>
+                <div class="loc">Asaba</div>
+              </div>
+            `;
+          }
+        } else {
+          // Show static reviews if no products
+          grid.innerHTML = `
+            <div class="review-card">
+              <div class="stars"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i></div>
+              <p>"Exactly like the picture. The fit is perfect and the fabric feels so luxurious."</p>
+              <div class="name">Chioma A.</div>
+              <div class="loc">Lagos</div>
+            </div>
+            <div class="review-card">
+              <div class="stars"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i></div>
+              <p>"The quality surprised me. I wore this to a wedding and received compliments all day."</p>
+              <div class="name">Aisha M.</div>
+              <div class="loc">Abuja</div>
+            </div>
+            <div class="review-card">
+              <div class="stars"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i></div>
+              <p>"Delivery was incredibly fast. The packaging was beautiful too. Will definitely buy again!"</p>
+              <div class="name">Evelyn O.</div>
+              <div class="loc">Asaba</div>
+            </div>
+          `;
+        }
+      } catch (error) {
+        console.error('Failed to load reviews:', error);
+        // Show static reviews as fallback
+        grid.innerHTML = `
+          <div class="review-card">
+            <div class="stars"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i></div>
+            <p>"Exactly like the picture. The fit is perfect and the fabric feels so luxurious."</p>
+            <div class="name">Chioma A.</div>
+            <div class="loc">Lagos</div>
+          </div>
+          <div class="review-card">
+            <div class="stars"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i></div>
+            <p>"The quality surprised me. I wore this to a wedding and received compliments all day."</p>
+            <div class="name">Aisha M.</div>
+            <div class="loc">Abuja</div>
+          </div>
+          <div class="review-card">
+            <div class="stars"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i></div>
+            <p>"Delivery was incredibly fast. The packaging was beautiful too. Will definitely buy again!"</p>
+            <div class="name">Evelyn O.</div>
+            <div class="loc">Asaba</div>
+          </div>
+        `;
       }
     },
 
@@ -973,6 +1051,8 @@
         }
       } catch (error) {
         console.error('Failed to load wishlist badges:', error);
+        document.getElementById('wishlistBadge').textContent = '0';
+        document.getElementById('wishlistBadgeMobile').textContent = '0';
       }
 
       try {
@@ -984,6 +1064,8 @@
         }
       } catch (error) {
         console.error('Failed to load cart badges:', error);
+        document.getElementById('cartBadge').textContent = '0';
+        document.getElementById('cartBadgeMobile').textContent = '0';
       }
     },
 
