@@ -825,10 +825,11 @@
   }
 
   // ============================================
-  // API HELPER - Direct API Calls Only
+  // API HELPER - Render Backend (Vercel Frontend)
   // ============================================
   const API = {
-    base: '/api',
+    // Render Backend URL - Replace with your actual Render URL
+    base: 'https://maxi-flair.onrender.com/api',
 
     async get(endpoint) {
       try {
@@ -862,6 +863,40 @@
         console.error('API Error:', error);
         throw error;
       }
+    },
+
+    async put(endpoint, data) {
+      try {
+        const res = await fetch(`${this.base}${endpoint}`, {
+          method: 'PUT',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        }
+        return await res.json();
+      } catch (error) {
+        console.error('API Error:', error);
+        throw error;
+      }
+    },
+
+    async delete(endpoint) {
+      try {
+        const res = await fetch(`${this.base}${endpoint}`, {
+          method: 'DELETE',
+          credentials: 'include'
+        });
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        }
+        return await res.json();
+      } catch (error) {
+        console.error('API Error:', error);
+        throw error;
+      }
     }
   };
 
@@ -885,7 +920,7 @@
       const labelEl = document.getElementById('apiStatusLabel');
 
       try {
-        const response = await fetch('/api/products?limit=1', {
+        const response = await fetch('https://maxi-flair.onrender.com/api/products?limit=1', {
           credentials: 'include'
         });
 
@@ -952,7 +987,6 @@
       const grid = document.getElementById('reviewsGrid');
 
       try {
-        // Get reviews from API (use a product ID or get all reviews)
         const data = await API.get('/products?limit=1');
         
         if (data.success && data.products && data.products.length > 0) {
@@ -970,7 +1004,6 @@
               </div>
             `).join('');
           } else {
-            // Fallback: show static reviews if none in DB
             grid.innerHTML = `
               <div class="review-card">
                 <div class="stars"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i></div>
@@ -993,7 +1026,6 @@
             `;
           }
         } else {
-          // Show static reviews if no products
           grid.innerHTML = `
             <div class="review-card">
               <div class="stars"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i></div>
@@ -1017,7 +1049,6 @@
         }
       } catch (error) {
         console.error('Failed to load reviews:', error);
-        // Show static reviews as fallback
         grid.innerHTML = `
           <div class="review-card">
             <div class="stars"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i></div>

@@ -1,9 +1,11 @@
 // ============================================
-// MAXIFLAIR.NG - Vercel Serverless API
+// MAXIFLAIR.NG - Render Backend Server
 // ============================================
 
 const express = require('express');
+const path = require('path');
 const session = require('express-session');
+const bcrypt = require('bcryptjs');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
@@ -13,6 +15,7 @@ const crypto = require('crypto');
 require('dotenv').config();
 
 const app = express();
+const PORT = process.env.PORT || 3000;
 
 // ============================================
 // SUPABASE CONFIGURATION
@@ -49,20 +52,40 @@ const CONSTANTS = {
 // MIDDLEWARE
 // ============================================
 
+// Security and logging middleware
 app.use(helmet({
     contentSecurityPolicy: false,
 }));
+
+// CORS - Allow Vercel frontend
+const allowedOrigins = [
+    'https://maxi-flair.vercel.app',
+    'https://maxiflair.vercel.app',
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://127.0.0.1:5500'
+];
+
 app.use(cors({
-    origin: process.env.NODE_ENV === 'production' 
-        ? ['https://maxi-flair.vercel.app', 'https://maxiflair.vercel.app', 'http://localhost:3000']
-        : '*',
-    credentials: true
+    origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV !== 'production') {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie']
 }));
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(morgan('dev'));
 
-// Session configuration for Vercel (in-memory, not persistent)
+// Session configuration
 app.use(session({
     secret: process.env.SESSION_SECRET || 'maxiflair-super-secret-key-2025',
     resave: false,
@@ -74,6 +97,14 @@ app.use(session({
     }
 }));
 
+// Make session data available to all views
+app.use((req, res, next) => {
+    res.locals.user = req.session.user || null;
+    res.locals.cartCount = req.session.cart ? req.session.cart.length : 0;
+    res.locals.wishlistCount = req.session.wishlist ? req.session.wishlist.length : 0;
+    next();
+});
+
 // Generate guest ID
 const getGuestId = (req) => {
     if (!req.session.guestId) {
@@ -83,7 +114,7 @@ const getGuestId = (req) => {
 };
 
 // ============================================
-// VALIDATION
+// VALIDATION MIDDLEWARE
 // ============================================
 
 const validate = (req, res, next) => {
@@ -118,10 +149,37 @@ const validations = {
 };
 
 // ============================================
-// MODELS
+// ERROR HANDLER
 // ============================================
 
-// Guest User Model
+const errorHandler = (err, req, res, next) => {
+    console.error('Error:', err);
+    if (err.code === '23505') {
+        return res.status(400).json({
+            success: false,
+            message: 'Duplicate entry. This record already exists.'
+        });
+    }
+    if (err.code === '23503') {
+        return res.status(400).json({
+            success: false,
+            message: 'Invalid reference. The related record does not exist.'
+        });
+    }
+    const status = err.status || 500;
+    const message = err.message || 'Internal Server Error';
+    res.status(status).json({
+        success: false,
+        message: message,
+        ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+    });
+};
+
+// ============================================
+// MODELS (Supabase Version)
+// ============================================
+
+// User Model - Simplified for Guest Checkout
 const User = {
     createGuest: async (userData) => {
         const { fullName, email, phone } = userData;
@@ -145,6 +203,16 @@ const User = {
             .from('users')
             .select('*')
             .eq('email', email)
+            .maybeSingle();
+        
+        if (error) throw error;
+        return data;
+    },
+    findById: async (id) => {
+        const { data, error } = await supabase
+            .from('users')
+            .select('id, full_name, email, phone, gender, date_of_birth, is_premium, member_since, is_active, is_guest, created_at')
+            .eq('id', id)
             .maybeSingle();
         
         if (error) throw error;
@@ -592,7 +660,7 @@ const Order = {
         if (orderError) throw orderError;
         
         for (const item of items) {
-            const { error: itemError } = await supabase
+            await supabase
                 .from('order_items')
                 .insert([{
                     order_id: order.id,
@@ -605,8 +673,6 @@ const Order = {
                     color: item.color,
                     total_price: item.effective_price * item.quantity
                 }]);
-            
-            if (itemError) throw itemError;
             
             const { data: product } = await supabase
                 .from('products')
@@ -681,17 +747,10 @@ const productController = {
         try {
             const { category, limit, offset, sort } = req.query;
             const products = await Product.findAll({ category, limit, offset, sort });
-            res.json({
-                success: true,
-                products,
-                count: products.length
-            });
+            res.json({ success: true, products, count: products.length });
         } catch (error) {
             console.error('Get products error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Failed to fetch products'
-            });
+            res.status(500).json({ success: false, message: 'Failed to fetch products' });
         }
     },
     getProductById: async (req, res) => {
@@ -699,75 +758,44 @@ const productController = {
             const { id } = req.params;
             const product = await Product.findById(id);
             if (!product) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'Product not found'
-                });
+                return res.status(404).json({ success: false, message: 'Product not found' });
             }
-            res.json({
-                success: true,
-                product
-            });
+            res.json({ success: true, product });
         } catch (error) {
             console.error('Get product error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Failed to fetch product'
-            });
+            res.status(500).json({ success: false, message: 'Failed to fetch product' });
         }
     },
     searchProducts: async (req, res) => {
         try {
             const { q } = req.query;
             if (!q) {
-                return res.json({
-                    success: true,
-                    products: [],
-                    count: 0
-                });
+                return res.json({ success: true, products: [], count: 0 });
             }
             const products = await Product.search(q);
-            res.json({
-                success: true,
-                products,
-                count: products.length
-            });
+            res.json({ success: true, products, count: products.length });
         } catch (error) {
             console.error('Search products error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Failed to search products'
-            });
+            res.status(500).json({ success: false, message: 'Failed to search products' });
         }
     },
     getProductReviews: async (req, res) => {
         try {
             const { id } = req.params;
             const reviews = await Product.getReviews(id);
-            res.json({
-                success: true,
-                reviews
-            });
+            res.json({ success: true, reviews });
         } catch (error) {
             console.error('Get reviews error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Failed to fetch reviews'
-            });
+            res.status(500).json({ success: false, message: 'Failed to fetch reviews' });
         }
     },
     addReview: async (req, res) => {
         try {
             const { id } = req.params;
             const { email, rating, title, comment } = req.body;
-            
             if (!email) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Email is required to leave a review'
-                });
+                return res.status(400).json({ success: false, message: 'Email is required' });
             }
-            
             let user = await User.findByEmail(email);
             if (!user) {
                 const { data, error } = await supabase
@@ -781,24 +809,14 @@ const productController = {
                     }])
                     .select('id')
                     .single();
-                
                 if (error) throw error;
                 user = data;
             }
-            
             const review = await Product.addReview(id, user.id, rating, comment, title);
-            res.status(201).json({
-                success: true,
-                message: 'Review added successfully',
-                review,
-                isVerified: false
-            });
+            res.status(201).json({ success: true, message: 'Review added successfully', review });
         } catch (error) {
             console.error('Add review error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Failed to add review'
-            });
+            res.status(500).json({ success: false, message: 'Failed to add review' });
         }
     }
 };
@@ -810,7 +828,6 @@ const cartController = {
             const cartId = await Cart.getOrCreateGuest(guestId);
             const items = await Cart.getItems(cartId);
             const subtotal = items.reduce((sum, item) => sum + (item.effective_price * item.quantity), 0);
-            req.session.cart = items;
             res.json({
                 success: true,
                 cart: {
@@ -824,10 +841,7 @@ const cartController = {
             });
         } catch (error) {
             console.error('Get cart error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Failed to fetch cart'
-            });
+            res.status(500).json({ success: false, message: 'Failed to fetch cart' });
         }
     },
     addToCart: async (req, res) => {
@@ -836,40 +850,25 @@ const cartController = {
             const guestId = getGuestId(req);
             const cartId = await Cart.getOrCreateGuest(guestId);
             await Cart.addItem(cartId, productId, variantId, quantity);
-            res.json({
-                success: true,
-                message: 'Added to cart successfully'
-            });
+            res.json({ success: true, message: 'Added to cart successfully' });
         } catch (error) {
             console.error('Add to cart error:', error);
-            res.status(500).json({
-                success: false,
-                message: error.message || 'Failed to add to cart'
-            });
+            res.status(500).json({ success: false, message: error.message || 'Failed to add to cart' });
         }
     },
     updateCartItem: async (req, res) => {
         try {
             const { productId, quantity } = req.body;
             if (quantity < 0) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Invalid quantity'
-                });
+                return res.status(400).json({ success: false, message: 'Invalid quantity' });
             }
             const guestId = getGuestId(req);
             const cartId = await Cart.getOrCreateGuest(guestId);
             await Cart.updateQuantity(cartId, productId, quantity);
-            res.json({
-                success: true,
-                message: 'Cart updated successfully'
-            });
+            res.json({ success: true, message: 'Cart updated successfully' });
         } catch (error) {
             console.error('Update cart error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Failed to update cart'
-            });
+            res.status(500).json({ success: false, message: 'Failed to update cart' });
         }
     },
     removeFromCart: async (req, res) => {
@@ -878,16 +877,10 @@ const cartController = {
             const guestId = getGuestId(req);
             const cartId = await Cart.getOrCreateGuest(guestId);
             await Cart.removeItem(cartId, productId);
-            res.json({
-                success: true,
-                message: 'Removed from cart successfully'
-            });
+            res.json({ success: true, message: 'Removed from cart successfully' });
         } catch (error) {
             console.error('Remove from cart error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Failed to remove from cart'
-            });
+            res.status(500).json({ success: false, message: 'Failed to remove from cart' });
         }
     },
     clearCart: async (req, res) => {
@@ -895,16 +888,10 @@ const cartController = {
             const guestId = getGuestId(req);
             const cartId = await Cart.getOrCreateGuest(guestId);
             await Cart.clear(cartId);
-            res.json({
-                success: true,
-                message: 'Cart cleared successfully'
-            });
+            res.json({ success: true, message: 'Cart cleared successfully' });
         } catch (error) {
             console.error('Clear cart error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Failed to clear cart'
-            });
+            res.status(500).json({ success: false, message: 'Failed to clear cart' });
         }
     }
 };
@@ -914,18 +901,10 @@ const wishlistController = {
         try {
             const guestId = getGuestId(req);
             const items = await Wishlist.getGuestItems(guestId);
-            res.json({
-                success: true,
-                wishlist: items,
-                count: items.length,
-                isGuest: true
-            });
+            res.json({ success: true, wishlist: items, count: items.length, isGuest: true });
         } catch (error) {
             console.error('Get wishlist error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Failed to fetch wishlist'
-            });
+            res.status(500).json({ success: false, message: 'Failed to fetch wishlist' });
         }
     },
     toggleWishlist: async (req, res) => {
@@ -933,18 +912,10 @@ const wishlistController = {
             const { productId } = req.body;
             const guestId = getGuestId(req);
             const result = await Wishlist.toggleGuest(guestId, productId);
-            res.json({
-                success: true,
-                message: result.message,
-                action: result.action,
-                isGuest: true
-            });
+            res.json({ success: true, message: result.message, action: result.action, isGuest: true });
         } catch (error) {
             console.error('Toggle wishlist error:', error);
-            res.status(500).json({
-                success: false,
-                message: error.message || 'Failed to update wishlist'
-            });
+            res.status(500).json({ success: false, message: error.message || 'Failed to update wishlist' });
         }
     },
     removeFromWishlist: async (req, res) => {
@@ -952,16 +923,10 @@ const wishlistController = {
             const { productId } = req.params;
             const guestId = getGuestId(req);
             await Wishlist.removeGuestItem(guestId, productId);
-            res.json({
-                success: true,
-                message: 'Removed from wishlist successfully'
-            });
+            res.json({ success: true, message: 'Removed from wishlist successfully' });
         } catch (error) {
             console.error('Remove from wishlist error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Failed to remove from wishlist'
-            });
+            res.status(500).json({ success: false, message: 'Failed to remove from wishlist' });
         }
     }
 };
@@ -970,20 +935,17 @@ const orderController = {
     createGuestOrder: async (req, res) => {
         try {
             const { fullName, email, phone, address, shippingCost, discount } = req.body;
-            
             if (!fullName || !email || !phone) {
                 return res.status(400).json({
                     success: false,
                     message: 'Please provide full name, email, and phone number'
                 });
             }
-            
             const guestId = getGuestId(req);
             const result = await Order.createGuestOrder(
                 { fullName, email, phone, address },
                 { guestId, shippingCost: shippingCost || 0, discount: discount || 0 }
             );
-            
             res.json({
                 success: true,
                 message: 'Order placed successfully! Check your email for confirmation.',
@@ -993,73 +955,43 @@ const orderController = {
             });
         } catch (error) {
             console.error('Create guest order error:', error);
-            res.status(500).json({
-                success: false,
-                message: error.message || 'Failed to place order'
-            });
+            res.status(500).json({ success: false, message: error.message || 'Failed to place order' });
         }
     },
     getOrderById: async (req, res) => {
         try {
             const { id } = req.params;
             const { email } = req.query;
-            
             if (!email) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Email is required to view orders'
-                });
+                return res.status(400).json({ success: false, message: 'Email is required to view orders' });
             }
-            
             const order = await Order.getOrderById(id, email);
             if (!order) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'Order not found'
-                });
+                return res.status(404).json({ success: false, message: 'Order not found' });
             }
-            
-            res.json({
-                success: true,
-                order
-            });
+            res.json({ success: true, order });
         } catch (error) {
             console.error('Get order error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Failed to fetch order'
-            });
+            res.status(500).json({ success: false, message: 'Failed to fetch order' });
         }
     },
     getOrdersByEmail: async (req, res) => {
         try {
             const { email } = req.query;
-            
             if (!email) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Email is required to view orders'
-                });
+                return res.status(400).json({ success: false, message: 'Email is required to view orders' });
             }
-            
             const orders = await Order.getOrdersByEmail(email);
-            res.json({
-                success: true,
-                orders,
-                count: orders.length
-            });
+            res.json({ success: true, orders, count: orders.length });
         } catch (error) {
             console.error('Get orders error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Failed to fetch orders'
-            });
+            res.status(500).json({ success: false, message: 'Failed to fetch orders' });
         }
     }
 };
 
 // ============================================
-// ADMIN ROUTES
+// ADMIN ROUTES - About Page Content
 // ============================================
 
 app.get('/api/admin/about-content', async (req, res) => {
@@ -1074,10 +1006,7 @@ app.get('/api/admin/about-content', async (req, res) => {
         if (error) throw error;
         
         if (data) {
-            res.json({
-                success: true,
-                content: data.content
-            });
+            res.json({ success: true, content: data.content });
         } else {
             const defaultContent = {
                 hero: {
@@ -1188,30 +1117,19 @@ app.get('/api/admin/about-content', async (req, res) => {
                     hours: 'Monday – Saturday | 8:00 AM – 6:00 PM'
                 }
             };
-            
-            res.json({
-                success: true,
-                content: defaultContent
-            });
+            res.json({ success: true, content: defaultContent });
         }
     } catch (error) {
         console.error('Get about content error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to fetch about content'
-        });
+        res.status(500).json({ success: false, message: 'Failed to fetch about content' });
     }
 });
 
 app.put('/api/admin/about-content', async (req, res) => {
     try {
         const { content } = req.body;
-        
         if (!content) {
-            return res.status(400).json({
-                success: false,
-                message: 'Content is required'
-            });
+            return res.status(400).json({ success: false, message: 'Content is required' });
         }
         
         const { data: existing, error: checkError } = await supabase
@@ -1247,63 +1165,116 @@ app.put('/api/admin/about-content', async (req, res) => {
         
         if (result.error) throw result.error;
         
-        res.json({
-            success: true,
-            message: 'About content updated successfully',
-            content: result.data
-        });
+        res.json({ success: true, message: 'About content updated successfully', content: result.data });
     } catch (error) {
         console.error('Update about content error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to update about content'
-        });
+        res.status(500).json({ success: false, message: 'Failed to update about content' });
     }
 });
 
 // ============================================
-// ROUTES
+// ROUTES - Guest Only
 // ============================================
 
+// Product Routes
 app.get('/api/products', productController.getAllProducts);
 app.get('/api/products/search', productController.searchProducts);
+app.get('/api/products/category/:category', productController.getProductsByCategory);
 app.get('/api/products/:id', productController.getProductById);
 app.get('/api/products/:id/reviews', productController.getProductReviews);
 app.post('/api/products/:id/reviews', productController.addReview);
 
+// Cart Routes
 app.get('/api/cart', cartController.getCart);
 app.post('/api/cart/add', cartController.addToCart);
 app.put('/api/cart/update', cartController.updateCartItem);
 app.delete('/api/cart/remove/:productId', cartController.removeFromCart);
 app.delete('/api/cart/clear', cartController.clearCart);
 
+// Wishlist Routes
 app.get('/api/wishlist', wishlistController.getWishlist);
 app.post('/api/wishlist/toggle', wishlistController.toggleWishlist);
 app.delete('/api/wishlist/remove/:productId', wishlistController.removeFromWishlist);
 
+// Order Routes
 app.post('/api/orders/guest', validations.guestOrder, orderController.createGuestOrder);
 app.get('/api/orders/track', orderController.getOrderById);
 app.get('/api/orders/email', orderController.getOrdersByEmail);
 
 // ============================================
-// ERROR HANDLER
+// SERVE STATIC HTML PAGES (For local testing)
 // ============================================
 
-const errorHandler = (err, req, res, next) => {
-    console.error('Error:', err);
-    const status = err.status || 500;
-    const message = err.message || 'Internal Server Error';
-    res.status(status).json({
-        success: false,
-        message: message,
-        ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-    });
-};
+// Serve static files from public directory
+app.use(express.static(path.join(__dirname, 'public')));
 
+// HTML Routes (only for local development)
+if (process.env.NODE_ENV !== 'production') {
+    const htmlRoutes = [
+        { path: '/', file: 'index.html' },
+        { path: '/shop', file: 'shop.html' },
+        { path: '/about', file: 'about.html' },
+        { path: '/wishlist', file: 'wishlist.html' },
+        { path: '/contact', file: 'contact.html' },
+        { path: '/track-order', file: 'track-order.html' },
+        { path: '/privacy', file: 'privacy.html' },
+        { path: '/terms', file: 'terms.html' },
+        { path: '/product/:id', file: 'product.html' },
+        { path: '/cart', file: 'cart.html' },
+        { path: '/checkout', file: 'checkout.html' },
+        { path: '/admin-about', file: 'admin-about.html' }
+    ];
+
+    htmlRoutes.forEach(route => {
+        app.get(route.path, (req, res) => {
+            res.sendFile(path.join(__dirname, 'public', route.file));
+        });
+    });
+}
+
+// ============================================
+// ERROR HANDLING
+// ============================================
+
+// 404 handler
+app.use((req, res) => {
+    res.status(404).json({ success: false, message: 'Not Found' });
+});
+
+// Global error handler
 app.use(errorHandler);
 
 // ============================================
-// EXPORT FOR VERCEL
+// SERVER START
 // ============================================
+
+const startServer = async () => {
+    try {
+        const { data, error } = await supabase.from('products').select('count').limit(1);
+        if (error) {
+            console.error('❌ Supabase connection error:', error.message);
+            console.log('⚠️  Please check your Supabase credentials in .env file');
+            console.log('   Required: SUPABASE_URL and SUPABASE_ANON_KEY');
+            process.exit(1);
+        }
+        
+        console.log('✅ Connected to Supabase database');
+
+        app.listen(PORT, () => {
+            console.log(`🚀 MAXIFLAIR.NG Server running on http://localhost:${PORT}`);
+            console.log(`📦 Environment: ${process.env.NODE_ENV || 'development'}`);
+            console.log('👤 Guest checkout only - no login required!');
+            console.log('🛍️  Shop with your email and track orders easily');
+        });
+    } catch (err) {
+        console.error('❌ Server startup error:', err.message);
+        process.exit(1);
+    }
+};
+
+// Only start server if running directly (not as module)
+if (require.main === module) {
+    startServer();
+}
 
 module.exports = app;
