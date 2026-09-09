@@ -1,5 +1,5 @@
 // ============================================
-// MAXIFLAIR.NG - Render Backend Server
+// MAXIFLAIR.NG - Complete Server (Guest Checkout Only)
 // ============================================
 
 const express = require('express');
@@ -52,33 +52,33 @@ const CONSTANTS = {
 // MIDDLEWARE
 // ============================================
 
-// Security and logging middleware
 app.use(helmet({
     contentSecurityPolicy: false,
 }));
 
-// CORS - Allow Vercel frontend
-const allowedOrigins = [
-    'https://maxi-flair.vercel.app',
-    'https://maxiflair.vercel.app',
-    'http://localhost:3000',
-    'http://localhost:3001',
-    'http://127.0.0.1:5500'
-];
+// CORS
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000,http://localhost:3001,https://maxi-flair.vercel.app,https://maxiflair.vercel.app')
+    .split(',')
+    .map(origin => origin.trim());
 
 app.use(cors({
     origin: function (origin, callback) {
-        // Allow requests with no origin (like mobile apps or curl requests)
         if (!origin) return callback(null, true);
-        if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV !== 'production') {
+        if (process.env.NODE_ENV !== 'production') {
+            return callback(null, true);
+        }
+        if (allowedOrigins.indexOf(origin) !== -1) {
             callback(null, true);
         } else {
+            console.warn('CORS blocked for origin:', origin);
             callback(new Error('Not allowed by CORS'));
         }
     },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie']
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'X-Requested-With'],
+    exposedHeaders: ['Set-Cookie'],
+    maxAge: 86400
 }));
 
 app.use(express.json({ limit: '10mb' }));
@@ -739,7 +739,7 @@ const Order = {
 };
 
 // ============================================
-// CONTROLLERS
+// CONTROLLERS - ALL DEFINED
 // ============================================
 
 const productController = {
@@ -753,6 +753,7 @@ const productController = {
             res.status(500).json({ success: false, message: 'Failed to fetch products' });
         }
     },
+    
     getProductById: async (req, res) => {
         try {
             const { id } = req.params;
@@ -766,6 +767,26 @@ const productController = {
             res.status(500).json({ success: false, message: 'Failed to fetch product' });
         }
     },
+    
+    // ✅ ADDED THIS MISSING FUNCTION
+    getProductsByCategory: async (req, res) => {
+        try {
+            const { category } = req.params;
+            const products = await Product.findAll({ category });
+            res.json({
+                success: true,
+                products,
+                count: products.length
+            });
+        } catch (error) {
+            console.error('Get products by category error:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to fetch products'
+            });
+        }
+    },
+    
     searchProducts: async (req, res) => {
         try {
             const { q } = req.query;
@@ -779,6 +800,7 @@ const productController = {
             res.status(500).json({ success: false, message: 'Failed to search products' });
         }
     },
+    
     getProductReviews: async (req, res) => {
         try {
             const { id } = req.params;
@@ -789,6 +811,7 @@ const productController = {
             res.status(500).json({ success: false, message: 'Failed to fetch reviews' });
         }
     },
+    
     addReview: async (req, res) => {
         try {
             const { id } = req.params;
@@ -821,6 +844,7 @@ const productController = {
     }
 };
 
+// Cart Controllers
 const cartController = {
     getCart: async (req, res) => {
         try {
@@ -844,6 +868,7 @@ const cartController = {
             res.status(500).json({ success: false, message: 'Failed to fetch cart' });
         }
     },
+    
     addToCart: async (req, res) => {
         try {
             const { productId, variantId, quantity = 1 } = req.body;
@@ -856,6 +881,7 @@ const cartController = {
             res.status(500).json({ success: false, message: error.message || 'Failed to add to cart' });
         }
     },
+    
     updateCartItem: async (req, res) => {
         try {
             const { productId, quantity } = req.body;
@@ -871,6 +897,7 @@ const cartController = {
             res.status(500).json({ success: false, message: 'Failed to update cart' });
         }
     },
+    
     removeFromCart: async (req, res) => {
         try {
             const { productId } = req.params;
@@ -883,6 +910,7 @@ const cartController = {
             res.status(500).json({ success: false, message: 'Failed to remove from cart' });
         }
     },
+    
     clearCart: async (req, res) => {
         try {
             const guestId = getGuestId(req);
@@ -896,6 +924,7 @@ const cartController = {
     }
 };
 
+// Wishlist Controllers
 const wishlistController = {
     getWishlist: async (req, res) => {
         try {
@@ -907,6 +936,7 @@ const wishlistController = {
             res.status(500).json({ success: false, message: 'Failed to fetch wishlist' });
         }
     },
+    
     toggleWishlist: async (req, res) => {
         try {
             const { productId } = req.body;
@@ -918,6 +948,7 @@ const wishlistController = {
             res.status(500).json({ success: false, message: error.message || 'Failed to update wishlist' });
         }
     },
+    
     removeFromWishlist: async (req, res) => {
         try {
             const { productId } = req.params;
@@ -931,6 +962,7 @@ const wishlistController = {
     }
 };
 
+// Order Controllers
 const orderController = {
     createGuestOrder: async (req, res) => {
         try {
@@ -958,6 +990,7 @@ const orderController = {
             res.status(500).json({ success: false, message: error.message || 'Failed to place order' });
         }
     },
+    
     getOrderById: async (req, res) => {
         try {
             const { id } = req.params;
@@ -975,6 +1008,7 @@ const orderController = {
             res.status(500).json({ success: false, message: 'Failed to fetch order' });
         }
     },
+    
     getOrdersByEmail: async (req, res) => {
         try {
             const { email } = req.query;
