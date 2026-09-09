@@ -1,0 +1,33 @@
+MAXIFLAIR/
+│
+├── index.html
+├── shop.html
+├── product.html
+├── cart.html
+├── checkout.html
+│
+├── login.html
+├── register.html
+├── profile.html
+├── orders.html
+├── wishlist.html
+│
+├── delivery.html
+├── returns.html
+├── size-guide.html
+├── track-order.html
+├── faq.html
+│
+└── admin/
+    ├── index.html
+    ├── login.html
+    ├── products.html
+    ├── orders.html
+    ├── customers.html
+    ├── inventory.html
+    ├── categories.html
+    ├── discounts.html
+    ├── reviews.html
+    ├── analytics.html
+    ├── delivery.html
+    └── settings.html
