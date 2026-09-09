@@ -1,11 +1,9 @@
 // ============================================
-// MAXIFLAIR.NG - Complete Server (Guest Checkout Only)
+// MAXIFLAIR.NG - Backend API Server
 // ============================================
 
 const express = require('express');
-const path = require('path');
 const session = require('express-session');
-const bcrypt = require('bcryptjs');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
@@ -35,17 +33,7 @@ const CONSTANTS = {
         CANCELLED: 'Cancelled',
         REFUNDED: 'Refunded'
     },
-    PAYMENT_STATUS: {
-        PENDING: 'Pending',
-        PAID: 'Paid',
-        FAILED: 'Failed',
-        REFUNDED: 'Refunded'
-    },
-    TAX_RATE: 0.075,
-    PAGINATION: {
-        DEFAULT_LIMIT: 20,
-        MAX_LIMIT: 100
-    }
+    TAX_RATE: 0.075
 };
 
 // ============================================
@@ -56,8 +44,9 @@ app.use(helmet({
     contentSecurityPolicy: false,
 }));
 
-// CORS
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000,http://localhost:3001,https://maxi-flair.vercel.app,https://maxiflair.vercel.app')
+// CORS - Allow Vercel frontend
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || 
+    'http://localhost:3000,http://localhost:3001,https://maxi-flair.vercel.app,https://maxiflair.vercel.app')
     .split(',')
     .map(origin => origin.trim());
 
@@ -97,14 +86,6 @@ app.use(session({
     }
 }));
 
-// Make session data available to all views
-app.use((req, res, next) => {
-    res.locals.user = req.session.user || null;
-    res.locals.cartCount = req.session.cart ? req.session.cart.length : 0;
-    res.locals.wishlistCount = req.session.wishlist ? req.session.wishlist.length : 0;
-    next();
-});
-
 // Generate guest ID
 const getGuestId = (req) => {
     if (!req.session.guestId) {
@@ -114,7 +95,7 @@ const getGuestId = (req) => {
 };
 
 // ============================================
-// VALIDATION MIDDLEWARE
+// VALIDATION
 // ============================================
 
 const validate = (req, res, next) => {
@@ -149,37 +130,10 @@ const validations = {
 };
 
 // ============================================
-// ERROR HANDLER
+// MODELS
 // ============================================
 
-const errorHandler = (err, req, res, next) => {
-    console.error('Error:', err);
-    if (err.code === '23505') {
-        return res.status(400).json({
-            success: false,
-            message: 'Duplicate entry. This record already exists.'
-        });
-    }
-    if (err.code === '23503') {
-        return res.status(400).json({
-            success: false,
-            message: 'Invalid reference. The related record does not exist.'
-        });
-    }
-    const status = err.status || 500;
-    const message = err.message || 'Internal Server Error';
-    res.status(status).json({
-        success: false,
-        message: message,
-        ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-    });
-};
-
-// ============================================
-// MODELS (Supabase Version)
-// ============================================
-
-// User Model - Simplified for Guest Checkout
+// User Model - Guest Only
 const User = {
     createGuest: async (userData) => {
         const { fullName, email, phone } = userData;
@@ -194,7 +148,6 @@ const User = {
             }])
             .select('id, full_name, email, phone, is_premium, member_since')
             .single();
-        
         if (error) throw error;
         return data;
     },
@@ -204,30 +157,17 @@ const User = {
             .select('*')
             .eq('email', email)
             .maybeSingle();
-        
-        if (error) throw error;
-        return data;
-    },
-    findById: async (id) => {
-        const { data, error } = await supabase
-            .from('users')
-            .select('id, full_name, email, phone, gender, date_of_birth, is_premium, member_since, is_active, is_guest, created_at')
-            .eq('id', id)
-            .maybeSingle();
-        
         if (error) throw error;
         return data;
     },
     addAddress: async (userId, addressData) => {
         const { addressType, addressLine1, addressLine2, city, state, postalCode, country, isDefault } = addressData;
-        
         if (isDefault) {
             await supabase
                 .from('user_addresses')
                 .update({ is_default: false })
                 .eq('user_id', userId);
         }
-        
         const { data, error } = await supabase
             .from('user_addresses')
             .insert([{
@@ -243,7 +183,6 @@ const User = {
             }])
             .select('*')
             .single();
-        
         if (error) throw error;
         return data;
     }
@@ -293,7 +232,6 @@ const Product = {
             .eq('id', id)
             .eq('is_active', true)
             .maybeSingle();
-        
         if (error) throw error;
         return data;
     },
@@ -308,7 +246,6 @@ const Product = {
             .or(`name.ilike.%${queryText}%,description.ilike.%${queryText}%,category.ilike.%${queryText}%`)
             .order('created_at', { ascending: false })
             .limit(10);
-        
         if (error) throw error;
         return data;
     },
@@ -322,7 +259,6 @@ const Product = {
             .eq('product_id', productId)
             .eq('is_approved', true)
             .order('created_at', { ascending: false });
-        
         if (error) throw error;
         return data.map(review => ({
             ...review,
@@ -342,7 +278,6 @@ const Product = {
             }])
             .select('*')
             .single();
-        
         if (error) throw error;
         await Product.updateRating(productId);
         return data;
@@ -353,11 +288,9 @@ const Product = {
             .select('rating')
             .eq('product_id', productId)
             .eq('is_approved', true);
-
         const avgRating = reviews && reviews.length > 0 
             ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length 
             : 0;
-        
         await supabase
             .from('products')
             .update({
@@ -376,16 +309,13 @@ const Cart = {
             .select('id')
             .eq('session_id', guestId)
             .maybeSingle();
-        
         if (error) throw error;
-        
         if (!data) {
             const { data: newCart, error: createError } = await supabase
                 .from('cart')
                 .insert([{ session_id: guestId }])
                 .select('id')
                 .single();
-            
             if (createError) throw createError;
             data = newCart;
         }
@@ -400,9 +330,7 @@ const Cart = {
                 product_variants!left(size, color, color_code)
             `)
             .eq('cart_id', cartId);
-        
         if (error) throw error;
-        
         for (let item of data) {
             const { data: image } = await supabase
                 .from('product_images')
@@ -411,12 +339,10 @@ const Cart = {
                 .eq('is_primary', true)
                 .limit(1)
                 .maybeSingle();
-            
             item.image_url = image?.image_url || null;
             item.effective_price = item.products.sale_price || item.products.price;
             item.name = item.products.name;
         }
-        
         return data;
     },
     addItem: async (cartId, productId, variantId, quantity) => {
@@ -425,7 +351,6 @@ const Cart = {
             .select('id, in_stock')
             .eq('id', productId)
             .maybeSingle();
-        
         if (productError) throw productError;
         if (!product) throw new Error('Product not found');
         if (!product.in_stock) throw new Error('Product is out of stock');
@@ -435,17 +360,13 @@ const Cart = {
             .select('id, quantity')
             .eq('cart_id', cartId)
             .eq('product_id', productId);
-        
         if (variantId) {
             query = query.eq('variant_id', variantId);
         } else {
             query = query.is('variant_id', null);
         }
-        
         const { data: existing, error: existingError } = await query.maybeSingle();
-        
         if (existingError) throw existingError;
-        
         if (existing) {
             const { error: updateError } = await supabase
                 .from('cart_items')
@@ -454,7 +375,6 @@ const Cart = {
                     updated_at: new Date().toISOString()
                 })
                 .eq('id', existing.id);
-            
             if (updateError) throw updateError;
         } else {
             const { error: insertError } = await supabase
@@ -465,10 +385,8 @@ const Cart = {
                     variant_id: variantId,
                     quantity: quantity
                 }]);
-            
             if (insertError) throw insertError;
         }
-        
         return true;
     },
     updateQuantity: async (cartId, productId, quantity) => {
@@ -478,7 +396,6 @@ const Cart = {
                 .delete()
                 .eq('cart_id', cartId)
                 .eq('product_id', productId);
-            
             if (error) throw error;
         } else {
             const { error } = await supabase
@@ -489,7 +406,6 @@ const Cart = {
                 })
                 .eq('cart_id', cartId)
                 .eq('product_id', productId);
-            
             if (error) throw error;
         }
         return true;
@@ -500,7 +416,6 @@ const Cart = {
             .delete()
             .eq('cart_id', cartId)
             .eq('product_id', productId);
-        
         if (error) throw error;
         return true;
     },
@@ -509,7 +424,6 @@ const Cart = {
             .from('cart_items')
             .delete()
             .eq('cart_id', cartId);
-        
         if (error) throw error;
         return true;
     }
@@ -526,9 +440,7 @@ const Wishlist = {
             `)
             .eq('session_id', sessionId)
             .order('created_at', { ascending: false });
-        
         if (error) throw error;
-        
         for (let item of data) {
             const { data: image } = await supabase
                 .from('product_images')
@@ -537,12 +449,10 @@ const Wishlist = {
                 .eq('is_primary', true)
                 .limit(1)
                 .maybeSingle();
-            
             item.image_url = image?.image_url || null;
             item.effective_price = item.products.sale_price || item.products.price;
             item.name = item.products.name;
         }
-        
         return data;
     },
     toggleGuest: async (sessionId, productId) => {
@@ -552,34 +462,23 @@ const Wishlist = {
             .eq('id', productId)
             .eq('is_active', true)
             .maybeSingle();
-        
         if (productError) throw productError;
         if (!product) throw new Error('Product not found');
-        
         const { data: existing, error: existingError } = await supabase
             .from('wishlist')
             .select('id')
             .eq('session_id', sessionId)
             .eq('product_id', productId)
             .maybeSingle();
-        
         if (existingError) throw existingError;
-        
         if (existing) {
-            await supabase
-                .from('wishlist')
-                .delete()
-                .eq('id', existing.id);
-            
+            await supabase.from('wishlist').delete().eq('id', existing.id);
             return { action: 'removed', message: 'Removed from wishlist' };
         } else {
-            await supabase
-                .from('wishlist')
-                .insert([{
-                    session_id: sessionId,
-                    product_id: productId
-                }]);
-            
+            await supabase.from('wishlist').insert([{
+                session_id: sessionId,
+                product_id: productId
+            }]);
             return { action: 'added', message: 'Added to wishlist' };
         }
     },
@@ -589,7 +488,6 @@ const Wishlist = {
             .delete()
             .eq('session_id', sessionId)
             .eq('product_id', productId);
-        
         if (error) throw error;
         return true;
     }
@@ -600,12 +498,10 @@ const Order = {
     createGuestOrder: async (guestData, orderData) => {
         const { fullName, email, phone, address } = guestData;
         const { shippingCost = 0, discount = 0 } = orderData;
-        
         let user = await User.findByEmail(email);
         if (!user) {
             user = await User.createGuest({ fullName, email, phone });
         }
-        
         let addressId = null;
         if (address) {
             const addrResult = await User.addAddress(user.id, {
@@ -620,27 +516,21 @@ const Order = {
             });
             addressId = addrResult.id;
         }
-        
         const guestId = orderData.guestId;
         const { data: guestCart, error: guestError } = await supabase
             .from('cart')
             .select('id')
             .eq('session_id', guestId)
             .maybeSingle();
-        
         if (guestError) throw guestError;
         if (!guestCart) throw new Error('No items in cart');
-        
         const guestCartId = guestCart.id;
         const items = await Cart.getItems(guestCartId);
-        
         if (items.length === 0) throw new Error('Cart is empty');
-        
         const subtotal = items.reduce((sum, item) => sum + (item.effective_price * item.quantity), 0);
         const tax = subtotal * CONSTANTS.TAX_RATE;
         const total = subtotal + shippingCost + tax - discount;
         const orderNumber = `MXF-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${Math.floor(1000 + Math.random() * 9000)}`;
-        
         const { data: order, error: orderError } = await supabase
             .from('orders')
             .insert([{
@@ -656,30 +546,24 @@ const Order = {
             }])
             .select('id, order_number, created_at')
             .single();
-        
         if (orderError) throw orderError;
-        
         for (const item of items) {
-            await supabase
-                .from('order_items')
-                .insert([{
-                    order_id: order.id,
-                    product_id: item.product_id,
-                    variant_id: item.variant_id,
-                    product_name: item.name,
-                    product_price: item.effective_price,
-                    quantity: item.quantity,
-                    size: item.size,
-                    color: item.color,
-                    total_price: item.effective_price * item.quantity
-                }]);
-            
+            await supabase.from('order_items').insert([{
+                order_id: order.id,
+                product_id: item.product_id,
+                variant_id: item.variant_id,
+                product_name: item.name,
+                product_price: item.effective_price,
+                quantity: item.quantity,
+                size: item.size,
+                color: item.color,
+                total_price: item.effective_price * item.quantity
+            }]);
             const { data: product } = await supabase
                 .from('products')
                 .select('stock_quantity')
                 .eq('id', item.product_id)
                 .single();
-            
             const newStock = product.stock_quantity - item.quantity;
             await supabase
                 .from('products')
@@ -689,15 +573,12 @@ const Order = {
                 })
                 .eq('id', item.product_id);
         }
-        
         await Cart.clear(guestCartId);
-        
         return { order, user };
     },
     getOrderById: async (orderId, email) => {
         const user = await User.findByEmail(email);
         if (!user) return null;
-        
         const { data, error } = await supabase
             .from('orders')
             .select(`
@@ -716,14 +597,12 @@ const Order = {
             .eq('id', orderId)
             .eq('user_id', user.id)
             .maybeSingle();
-        
         if (error) throw error;
         return data;
     },
     getOrdersByEmail: async (email) => {
         const user = await User.findByEmail(email);
         if (!user) return [];
-        
         const { data, error } = await supabase
             .from('orders')
             .select(`
@@ -732,14 +611,13 @@ const Order = {
             `)
             .eq('user_id', user.id)
             .order('created_at', { ascending: false });
-        
         if (error) throw error;
         return data;
     }
 };
 
 // ============================================
-// CONTROLLERS - ALL DEFINED
+// CONTROLLERS
 // ============================================
 
 const productController = {
@@ -753,7 +631,6 @@ const productController = {
             res.status(500).json({ success: false, message: 'Failed to fetch products' });
         }
     },
-    
     getProductById: async (req, res) => {
         try {
             const { id } = req.params;
@@ -767,26 +644,16 @@ const productController = {
             res.status(500).json({ success: false, message: 'Failed to fetch product' });
         }
     },
-    
-    // ✅ ADDED THIS MISSING FUNCTION
     getProductsByCategory: async (req, res) => {
         try {
             const { category } = req.params;
             const products = await Product.findAll({ category });
-            res.json({
-                success: true,
-                products,
-                count: products.length
-            });
+            res.json({ success: true, products, count: products.length });
         } catch (error) {
             console.error('Get products by category error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Failed to fetch products'
-            });
+            res.status(500).json({ success: false, message: 'Failed to fetch products' });
         }
     },
-    
     searchProducts: async (req, res) => {
         try {
             const { q } = req.query;
@@ -800,7 +667,6 @@ const productController = {
             res.status(500).json({ success: false, message: 'Failed to search products' });
         }
     },
-    
     getProductReviews: async (req, res) => {
         try {
             const { id } = req.params;
@@ -811,7 +677,6 @@ const productController = {
             res.status(500).json({ success: false, message: 'Failed to fetch reviews' });
         }
     },
-    
     addReview: async (req, res) => {
         try {
             const { id } = req.params;
@@ -844,7 +709,6 @@ const productController = {
     }
 };
 
-// Cart Controllers
 const cartController = {
     getCart: async (req, res) => {
         try {
@@ -868,7 +732,6 @@ const cartController = {
             res.status(500).json({ success: false, message: 'Failed to fetch cart' });
         }
     },
-    
     addToCart: async (req, res) => {
         try {
             const { productId, variantId, quantity = 1 } = req.body;
@@ -881,7 +744,6 @@ const cartController = {
             res.status(500).json({ success: false, message: error.message || 'Failed to add to cart' });
         }
     },
-    
     updateCartItem: async (req, res) => {
         try {
             const { productId, quantity } = req.body;
@@ -897,7 +759,6 @@ const cartController = {
             res.status(500).json({ success: false, message: 'Failed to update cart' });
         }
     },
-    
     removeFromCart: async (req, res) => {
         try {
             const { productId } = req.params;
@@ -910,7 +771,6 @@ const cartController = {
             res.status(500).json({ success: false, message: 'Failed to remove from cart' });
         }
     },
-    
     clearCart: async (req, res) => {
         try {
             const guestId = getGuestId(req);
@@ -924,7 +784,6 @@ const cartController = {
     }
 };
 
-// Wishlist Controllers
 const wishlistController = {
     getWishlist: async (req, res) => {
         try {
@@ -936,7 +795,6 @@ const wishlistController = {
             res.status(500).json({ success: false, message: 'Failed to fetch wishlist' });
         }
     },
-    
     toggleWishlist: async (req, res) => {
         try {
             const { productId } = req.body;
@@ -948,7 +806,6 @@ const wishlistController = {
             res.status(500).json({ success: false, message: error.message || 'Failed to update wishlist' });
         }
     },
-    
     removeFromWishlist: async (req, res) => {
         try {
             const { productId } = req.params;
@@ -962,7 +819,6 @@ const wishlistController = {
     }
 };
 
-// Order Controllers
 const orderController = {
     createGuestOrder: async (req, res) => {
         try {
@@ -990,7 +846,6 @@ const orderController = {
             res.status(500).json({ success: false, message: error.message || 'Failed to place order' });
         }
     },
-    
     getOrderById: async (req, res) => {
         try {
             const { id } = req.params;
@@ -1008,7 +863,6 @@ const orderController = {
             res.status(500).json({ success: false, message: 'Failed to fetch order' });
         }
     },
-    
     getOrdersByEmail: async (req, res) => {
         try {
             const { email } = req.query;
@@ -1025,7 +879,7 @@ const orderController = {
 };
 
 // ============================================
-// ADMIN ROUTES - About Page Content
+// ADMIN ROUTES
 // ============================================
 
 app.get('/api/admin/about-content', async (req, res) => {
@@ -1036,12 +890,11 @@ app.get('/api/admin/about-content', async (req, res) => {
             .order('created_at', { ascending: false })
             .limit(1)
             .maybeSingle();
-        
         if (error) throw error;
-        
         if (data) {
             res.json({ success: true, content: data.content });
         } else {
+            // Return default content
             const defaultContent = {
                 hero: {
                     title: 'Our Story',
@@ -1165,15 +1018,12 @@ app.put('/api/admin/about-content', async (req, res) => {
         if (!content) {
             return res.status(400).json({ success: false, message: 'Content is required' });
         }
-        
         const { data: existing, error: checkError } = await supabase
             .from('about_content')
             .select('id')
             .limit(1)
             .maybeSingle();
-        
         if (checkError) throw checkError;
-        
         let result;
         if (existing) {
             result = await supabase
@@ -1196,9 +1046,7 @@ app.put('/api/admin/about-content', async (req, res) => {
                 .select('*')
                 .single();
         }
-        
         if (result.error) throw result.error;
-        
         res.json({ success: true, message: 'About content updated successfully', content: result.data });
     } catch (error) {
         console.error('Update about content error:', error);
@@ -1207,7 +1055,7 @@ app.put('/api/admin/about-content', async (req, res) => {
 });
 
 // ============================================
-// ROUTES - Guest Only
+// ROUTES - API Only
 // ============================================
 
 // Product Routes
@@ -1236,47 +1084,57 @@ app.get('/api/orders/track', orderController.getOrderById);
 app.get('/api/orders/email', orderController.getOrdersByEmail);
 
 // ============================================
-// SERVE STATIC HTML PAGES (For local testing)
+// ROOT & HEALTH ROUTES
 // ============================================
 
-// Serve static files from public directory
-app.use(express.static(path.join(__dirname, 'public')));
-
-// HTML Routes (only for local development)
-if (process.env.NODE_ENV !== 'production') {
-    const htmlRoutes = [
-        { path: '/', file: 'index.html' },
-        { path: '/shop', file: 'shop.html' },
-        { path: '/about', file: 'about.html' },
-        { path: '/wishlist', file: 'wishlist.html' },
-        { path: '/contact', file: 'contact.html' },
-        { path: '/track-order', file: 'track-order.html' },
-        { path: '/privacy', file: 'privacy.html' },
-        { path: '/terms', file: 'terms.html' },
-        { path: '/product/:id', file: 'product.html' },
-        { path: '/cart', file: 'cart.html' },
-        { path: '/checkout', file: 'checkout.html' },
-        { path: '/admin-about', file: 'admin-about.html' }
-    ];
-
-    htmlRoutes.forEach(route => {
-        app.get(route.path, (req, res) => {
-            res.sendFile(path.join(__dirname, 'public', route.file));
-        });
+app.get('/health', (req, res) => {
+    res.status(200).json({ 
+        status: 'ok', 
+        service: 'MAXIFLAIR.NG API',
+        timestamp: new Date().toISOString()
     });
-}
+});
+
+app.get('/', (req, res) => {
+    res.status(200).json({
+        service: 'MAXIFLAIR.NG API',
+        version: '1.0.0',
+        status: 'running',
+        endpoints: {
+            products: '/api/products',
+            cart: '/api/cart',
+            wishlist: '/api/wishlist',
+            orders: '/api/orders',
+            admin: '/api/admin/about-content'
+        },
+        frontend: 'https://maxi-flair.vercel.app'
+    });
+});
 
 // ============================================
 // ERROR HANDLING
 // ============================================
 
-// 404 handler
+// 404 handler - API only
 app.use((req, res) => {
-    res.status(404).json({ success: false, message: 'Not Found' });
+    res.status(404).json({ 
+        success: false, 
+        message: 'API endpoint not found',
+        hint: 'This is a backend API server. Frontend is at https://maxi-flair.vercel.app'
+    });
 });
 
 // Global error handler
-app.use(errorHandler);
+app.use((err, req, res, next) => {
+    console.error('Error:', err);
+    const status = err.status || 500;
+    const message = err.message || 'Internal Server Error';
+    res.status(status).json({
+        success: false,
+        message: message,
+        ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+    });
+});
 
 // ============================================
 // SERVER START
@@ -1288,17 +1146,16 @@ const startServer = async () => {
         if (error) {
             console.error('❌ Supabase connection error:', error.message);
             console.log('⚠️  Please check your Supabase credentials in .env file');
-            console.log('   Required: SUPABASE_URL and SUPABASE_ANON_KEY');
             process.exit(1);
         }
         
         console.log('✅ Connected to Supabase database');
 
         app.listen(PORT, () => {
-            console.log(`🚀 MAXIFLAIR.NG Server running on http://localhost:${PORT}`);
+            console.log(`🚀 MAXIFLAIR.NG API Server running on port ${PORT}`);
             console.log(`📦 Environment: ${process.env.NODE_ENV || 'development'}`);
-            console.log('👤 Guest checkout only - no login required!');
-            console.log('🛍️  Shop with your email and track orders easily');
+            console.log(`🔗 API URL: https://maxi-flair.onrender.com/api`);
+            console.log(`🌐 Frontend: https://maxi-flair.vercel.app`);
         });
     } catch (err) {
         console.error('❌ Server startup error:', err.message);
@@ -1306,7 +1163,6 @@ const startServer = async () => {
     }
 };
 
-// Only start server if running directly (not as module)
 if (require.main === module) {
     startServer();
 }
