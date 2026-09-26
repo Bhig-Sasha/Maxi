@@ -18,6 +18,7 @@
       min-height:100vh;
       display:flex;
       flex-direction:column;
+      padding-bottom: 72px;
     }
     .container { max-width:1280px; margin:0 auto; padding:0 1.25rem; }
     .flex { display:flex; }
@@ -46,6 +47,7 @@
       text-align:center;
     }
     .btn-dark:hover { background:#b8860b; }
+    .btn-dark:disabled { opacity:0.6; cursor:not-allowed; }
     .btn-outline-ink {
       background:transparent; border:1px solid #1e1a1a;
       color:#1e1a1a; padding:0.5rem 1.5rem;
@@ -146,7 +148,7 @@
     }
     .page-hero p { color:#5a4e4e; font-size:1rem; max-width:600px; margin:0 auto; }
 
-    /* track form */
+    /* track layout */
     .track-wrap {
       display:grid; grid-template-columns:1fr; gap:2rem;
       padding:2.5rem 0;
@@ -154,15 +156,14 @@
     .track-form {
       background:#fff; border-radius:12px; padding:2rem 1.5rem;
       border:1px solid #ece2d8; box-shadow:0 4px 16px rgba(0,0,0,0.03);
+      height:fit-content;
     }
     .track-form h3 {
       font-family:'Playfair Display',serif; font-weight:600;
       font-size:1.3rem; margin-bottom:0.3rem;
     }
     .track-form .sub { color:#5a4e4e; font-size:0.9rem; margin-bottom:1.5rem; }
-    .form-group {
-      margin-bottom:1.2rem;
-    }
+    .form-group { margin-bottom:1.2rem; }
     .form-group label {
       display:block; font-size:0.8rem; font-weight:500;
       margin-bottom:0.3rem; color:#1e1a1a;
@@ -177,7 +178,9 @@
     }
     .form-group .input-wrap input {
       width:100%; padding:0.75rem 1rem; border:none;
-      background:transparent; font-size:0.9rem; outline:none;
+      background:transparent; font-size:0.95rem; outline:none;
+      letter-spacing:0.05em; text-transform:uppercase;
+      font-weight:500;
     }
     .form-group .input-wrap i {
       padding:0 0.75rem; color:#5a4e4e;
@@ -195,6 +198,36 @@
       color:#5a4e4e;
     }
     .track-form .guest-notice p i { color:#b8860b; margin-right:0.3rem; }
+    .track-form .recent-codes {
+      margin-top:1.2rem;
+      padding-top:1.2rem;
+      border-top:1px solid #ece2d8;
+    }
+    .track-form .recent-codes h5 {
+      font-size:0.75rem;
+      text-transform:uppercase;
+      letter-spacing:0.1em;
+      color:#5a4e4e;
+      margin-bottom:0.6rem;
+    }
+    .track-form .recent-codes .code-chip {
+      display:inline-block;
+      background:#f5ede6;
+      border:1px solid #e2d6ca;
+      padding:0.3rem 0.8rem;
+      border-radius:20px;
+      font-size:0.75rem;
+      font-family:monospace;
+      color:#1e1a1a;
+      margin:0 0.3rem 0.4rem 0;
+      cursor:pointer;
+      transition:0.2s;
+    }
+    .track-form .recent-codes .code-chip:hover {
+      background:#b8860b;
+      color:#fff;
+      border-color:#b8860b;
+    }
 
     /* order result */
     .order-result {
@@ -209,23 +242,32 @@
     }
     .order-result .result-header h4 {
       font-family:'Playfair Display',serif; font-weight:600;
+      font-size:1.1rem;
+    }
+    .order-result .result-header .order-num {
+      display:block; font-size:0.75rem; font-weight:400;
+      color:#5a4e4e; margin-top:0.15rem;
+      letter-spacing:0.05em;
     }
     .order-result .result-body { padding:1.5rem; }
     .status-badge {
       display:inline-flex; align-items:center; gap:0.4rem;
-      background:#b8860b; color:#fff; padding:0.2rem 1rem;
+      background:#b8860b; color:#fff; padding:0.3rem 1rem;
       border-radius:20px; font-size:0.7rem; font-weight:600;
+      letter-spacing:0.05em; text-transform:uppercase;
     }
+    .status-badge.pending { background:#f39c12; }
     .status-badge.processing { background:#f39c12; }
     .status-badge.shipped { background:#2980b9; }
     .status-badge.delivered { background:#27ae60; }
     .status-badge.cancelled { background:#e74c3c; }
+
     .info-grid {
       display:grid; grid-template-columns:1fr 1fr; gap:0.8rem;
       margin:1rem 0;
     }
     .info-item { font-size:0.9rem; }
-    .info-item strong { display:block; font-size:0.7rem; text-transform:uppercase; color:#5a4e4e; letter-spacing:0.05em; }
+    .info-item strong { display:block; font-size:0.7rem; text-transform:uppercase; color:#5a4e4e; letter-spacing:0.05em; margin-bottom:0.1rem; }
     .info-item span { font-weight:500; }
 
     /* timeline */
@@ -258,8 +300,34 @@
       100% { transform:scale(1); }
     }
     .timeline-item .content { font-size:0.85rem; }
-    .timeline-item .content .title { font-weight:600; }
+    .timeline-item .content .title { font-weight:600; display:block; }
     .timeline-item .content .date { color:#5a4e4e; font-size:0.75rem; }
+
+    /* items list */
+    .order-items-list {
+      margin-top:1.2rem;
+      border-top:1px solid #ece2d8;
+      padding-top:1rem;
+    }
+    .order-items-list h5 {
+      font-size:0.75rem; text-transform:uppercase;
+      letter-spacing:0.1em; color:#5a4e4e;
+      margin-bottom:0.6rem;
+    }
+    .order-item-row {
+      display:flex; align-items:center; gap:0.75rem;
+      padding:0.6rem 0;
+      border-bottom:1px solid #f5ede6;
+    }
+    .order-item-row:last-child { border-bottom:none; }
+    .order-item-row img {
+      width:48px; height:56px; object-fit:cover; border-radius:4px;
+      background:#f5ede6; flex-shrink:0;
+    }
+    .order-item-row .details { flex:1; font-size:0.85rem; }
+    .order-item-row .details .name { font-weight:500; }
+    .order-item-row .details .variant { color:#5a4e4e; font-size:0.75rem; }
+    .order-item-row .line-price { font-weight:600; font-size:0.85rem; }
 
     .no-order {
       text-align:center; padding:2rem 1rem;
@@ -278,7 +346,7 @@
       display:flex; flex-direction:column; align-items:center;
       text-decoration:none; color:#5a4e4e; font-size:0.5rem;
       font-weight:500; letter-spacing:0.05em; text-transform:uppercase;
-      gap:0.1rem; padding:0.2rem 0.5rem;
+      gap:0.1rem; padding:0.2rem 0.5rem; position:relative;
     }
     .bottom-nav a i { font-size:1.1rem; }
     .bottom-nav a.active { color:#b8860b; }
@@ -290,17 +358,14 @@
     }
 
     @media (min-width:768px) {
+      body { padding-bottom: 0; }
       .nav-links { display:flex; }
       .mobile-menu { display:none !important; }
-      body { padding-bottom:0; }
       .bottom-nav { display:none; }
       .page-hero { padding:3.5rem 1rem; }
       .page-hero h1 { font-size:3rem; }
-      .track-wrap { grid-template-columns:1fr 1fr; gap:2.5rem; }
+      .track-wrap { grid-template-columns:1fr 1.2fr; gap:2.5rem; align-items:start; }
       .info-grid { grid-template-columns:1fr 1fr; }
-    }
-    @media (min-width:992px) {
-      .track-wrap { grid-template-columns:1fr 1fr; }
     }
     @media (max-width:767px) {
       .mobile-menu.open { display:block; }
@@ -326,34 +391,14 @@
       .whatsapp-float { bottom:2rem; right:2rem; width:60px; height:60px; font-size:2.2rem; }
     }
 
-    /* API Status */
-    .api-status {
-      position:fixed; bottom:100px; left:20px;
-      padding:0.5rem 1rem; border-radius:20px;
-      font-size:0.7rem; font-weight:600; z-index:100;
-      display:flex; align-items:center; gap:0.5rem;
-    }
-    .api-status.online {
-      background:#d4edda; color:#155724;
-    }
-    .api-status.offline {
-      background:#f8d7da; color:#721c24;
-    }
-    .api-status .dot {
-      width:8px; height:8px; border-radius:50%; display:inline-block;
-    }
-    .api-status.online .dot { background:#28a745; }
-    .api-status.offline .dot { background:#dc3545; }
-    @media (max-width:767px) {
-      .api-status { bottom:80px; left:10px; font-size:0.6rem; padding:0.3rem 0.7rem; }
-    }
-
     /* Spinner */
     .spinner {
       display:inline-block; width:20px; height:20px;
       border:2px solid #f3f3f3; border-top:2px solid #b8860b;
       border-radius:50%; animation:spin 0.8s linear infinite;
+      vertical-align:middle;
     }
+    .spinner.white { border-color:rgba(255,255,255,0.3); border-top-color:#fff; }
     @keyframes spin {
       0% { transform:rotate(0deg); }
       100% { transform:rotate(360deg); }
@@ -392,10 +437,23 @@
       text-decoration:none; color:#5a4e4e; font-size:0.9rem; transition:0.2s;
     }
     footer .footer-grid ul a:hover { color:#b8860b; }
+
+    /* Copy button */
+    .copy-btn {
+      background:transparent; border:1px solid #ddd0c2;
+      color:#5a4e4e; padding:0.15rem 0.5rem;
+      border-radius:4px; font-size:0.65rem;
+      cursor:pointer; transition:0.2s;
+      font-family:'Inter',sans-serif;
+      margin-left:0.4rem;
+    }
+    .copy-btn:hover { background:#1e1a1a; color:#fff; border-color:#1e1a1a; }
   </style>
 </head>
 <body>
+
 <div class="top-banner">Free Nationwide Delivery on Orders Over ₦50,000</div>
+
 <header class="navbar">
   <div class="navbar-inner">
     <button id="menuToggle" style="background:none; border:none; font-size:1.3rem; color:#1e1a1a; padding:0.2rem;">
@@ -409,7 +467,7 @@
       <a href="contact.html">Contact</a>
     </nav>
     <div class="header-icons">
-      <div class="relative" style="position:relative;">
+      <div class="relative">
         <button id="searchToggle"><i class="fas fa-search"></i></button>
         <div id="searchDropdown" class="search-dropdown">
           <input type="text" id="searchInput" placeholder="Search products..." />
@@ -434,7 +492,7 @@
 <!-- HERO -->
 <section class="page-hero">
   <h1>Track Your Order</h1>
-  <p>Enter your order number and email to see the real-time status of your delivery.</p>
+  <p>Enter your tracking code to see the real-time status of your delivery.</p>
 </section>
 
 <main class="container">
@@ -442,26 +500,26 @@
     <!-- Left: Track Form -->
     <div class="track-form">
       <h3>Track Order</h3>
-      <p class="sub">Enter your order details below.</p>
+      <p class="sub">Enter your tracking code below.</p>
 
       <div class="guest-notice">
-        <p><i class="fas fa-user"></i> Guest checkout? Track your order using the email you provided during checkout.</p>
+        <p><i class="fas fa-barcode"></i> Use the tracking code we sent to your email (e.g. <strong>TRK-8F3A9C21</strong>).</p>
       </div>
 
       <form id="trackForm">
         <div class="form-group">
-          <label for="orderNumber">Order Number</label>
+          <label for="trackingCode">Tracking Code</label>
           <div class="input-wrap">
-            <i class="fas fa-hashtag"></i>
-            <input type="text" id="orderNumber" placeholder="e.g. MXF-20260101-1234" required />
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="trackEmail">Email Address</label>
-          <div class="input-wrap">
-            <i class="fas fa-envelope"></i>
-            <input type="email" id="trackEmail" placeholder="you@example.com" required />
+            <i class="fas fa-barcode"></i>
+            <input
+              type="text"
+              id="trackingCode"
+              placeholder="TRK-XXXXXXXX"
+              autocomplete="off"
+              autocapitalize="characters"
+              spellcheck="false"
+              required
+            />
           </div>
         </div>
 
@@ -470,14 +528,21 @@
         </button>
       </form>
 
+      <!-- Recently tracked codes (localStorage) -->
+      <div class="recent-codes" id="recentCodes" style="display:none;">
+        <h5>Recent searches</h5>
+        <div id="recentCodesList"></div>
+      </div>
+
       <div style="margin-top:1.2rem; background:#fcf8f4; padding:0.8rem; border-radius:8px; font-size:0.8rem; color:#5a4e4e; text-align:center;">
-        <i class="fas fa-info-circle" style="color:#b8860b;"></i> Need help? <a href="contact.html" style="color:#b8860b; font-weight:500;">Contact us</a>
+        <i class="fas fa-info-circle" style="color:#b8860b;"></i>
+        Lost your code? <a href="contact.html" style="color:#b8860b; font-weight:500;">Contact us</a>
       </div>
     </div>
 
     <!-- Right: Order Result -->
     <div id="orderResult" class="order-result">
-      <!-- Will be populated by JavaScript -->
+      <!-- Populated by JavaScript -->
     </div>
   </div>
 </main>
@@ -528,18 +593,19 @@
 <!-- WHATSAPP FLOAT -->
 <a href="https://wa.me/1234567890" target="_blank" rel="noopener" class="whatsapp-float"><i class="fab fa-whatsapp"></i></a>
 
-<!-- API Status -->
-<div class="api-status" id="apiStatus">
-  <span class="dot"></span>
-  <span id="apiStatusLabel">Checking connection...</span>
-</div>
-
 <!-- Toast Notification -->
 <div id="toast" class="toast"></div>
 
 <script>
   // ============================================
-  // TOAST NOTIFICATION
+  // CONFIG
+  // ============================================
+  const API_BASE = 'https://maxi-flair.onrender.com/api';
+  const WISHLIST_KEY = 'mxf_wishlist';
+  const RECENT_CODES_KEY = 'mxf_recent_codes';
+
+  // ============================================
+  // TOAST
   // ============================================
   function showToast(message, type = 'success') {
     const toast = document.getElementById('toast');
@@ -547,121 +613,142 @@
     toast.className = `toast ${type}`;
     void toast.offsetWidth;
     toast.classList.add('show');
-    setTimeout(() => {
-      toast.classList.remove('show');
-    }, 4000);
+    clearTimeout(window.__toastTimer);
+    window.__toastTimer = setTimeout(() => toast.classList.remove('show'), 3500);
   }
 
   // ============================================
-  // API HELPER - GUEST ONLY
+  // API HELPER
   // ============================================
-  const API = {
-    base: '/api',
+  async function apiGet(path) {
+    const res = await fetch(`${API_BASE}${path}`, {
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.message || `HTTP ${res.status}`);
+    }
+    return data;
+  }
 
-    async get(endpoint) {
-      try {
-        const res = await fetch(`${this.base}${endpoint}`, {
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' }
-        });
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-        }
-        return await res.json();
-      } catch (error) {
-        console.error('API Error:', error);
-        throw error;
+  // ============================================
+  // BADGES (cart + wishlist)
+  // ============================================
+  function updateWishlistBadge() {
+    let count = 0;
+    try {
+      const raw = localStorage.getItem(WISHLIST_KEY);
+      count = raw ? (JSON.parse(raw) || []).length : 0;
+    } catch { count = 0; }
+    ['wishlistBadge', 'wishlistBadgeMobile'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.textContent = count;
+        el.style.display = count > 0 ? 'flex' : 'none';
       }
+    });
+  }
+
+  async function updateCartBadge() {
+    try {
+      const data = await apiGet('/cart');
+      if (data.success && data.cart) {
+        const n = data.cart.count || 0;
+        ['cartBadge', 'cartBadgeMobile'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) {
+            el.textContent = n;
+            el.style.display = n > 0 ? 'flex' : 'none';
+          }
+        });
+      }
+    } catch (e) { /* silent */ }
+  }
+
+  // ============================================
+  // RECENT CODES (localStorage)
+  // ============================================
+  const RecentCodes = {
+    get() {
+      try { return JSON.parse(localStorage.getItem(RECENT_CODES_KEY) || '[]'); }
+      catch { return []; }
+    },
+    add(code) {
+      code = code.toUpperCase().trim();
+      if (!code) return;
+      let arr = this.get().filter(c => c !== code);
+      arr.unshift(code);
+      arr = arr.slice(0, 5);
+      localStorage.setItem(RECENT_CODES_KEY, JSON.stringify(arr));
+      this.render();
+    },
+    render() {
+      const wrap = document.getElementById('recentCodes');
+      const list = document.getElementById('recentCodesList');
+      const arr = this.get();
+      if (!arr.length) { wrap.style.display = 'none'; return; }
+      wrap.style.display = 'block';
+      list.innerHTML = arr.map(c =>
+        `<span class="code-chip" data-code="${c}">${c}</span>`
+      ).join('');
+      list.querySelectorAll('.code-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          document.getElementById('trackingCode').value = chip.dataset.code;
+          document.getElementById('trackForm').dispatchEvent(new Event('submit'));
+        });
+      });
     }
   };
 
   // ============================================
-  // TRACK ORDER CONTROLLER
+  // TRACK CONTROLLER
   // ============================================
   const TrackController = {
-    async init() {
-      await this.checkAPIStatus();
-      await this.loadBadges();
+    init() {
+      updateWishlistBadge();
+      updateCartBadge();
+      RecentCodes.render();
       this.setupEventListeners();
+      this.autoLoadFromUrl();
     },
 
-    async checkAPIStatus() {
-      const statusEl = document.getElementById('apiStatus');
-      const labelEl = document.getElementById('apiStatusLabel');
-
-      try {
-        const response = await fetch('/api/products?limit=1', {
-          credentials: 'include'
-        });
-
-        if (response.ok) {
-          statusEl.className = 'api-status online';
-          labelEl.textContent = '✅ Database Connected';
-        } else {
-          statusEl.className = 'api-status offline';
-          labelEl.textContent = '❌ Server Offline';
-        }
-      } catch (error) {
-        statusEl.className = 'api-status offline';
-        labelEl.textContent = '❌ Connection Failed';
-        console.error('API Status Check Failed:', error);
+    autoLoadFromUrl() {
+      // Support ?code=TRK-XXXX or /track-order.html?code=...
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get('code');
+      if (code) {
+        document.getElementById('trackingCode').value = code.toUpperCase();
+        setTimeout(() => document.getElementById('trackForm').dispatchEvent(new Event('submit')), 200);
       }
     },
 
-    async loadBadges() {
-      try {
-        const wishlistData = await API.get('/wishlist');
-        if (wishlistData.success) {
-          const count = wishlistData.wishlist?.length || 0;
-          document.getElementById('wishlistBadge').textContent = count;
-          document.getElementById('wishlistBadgeMobile').textContent = count;
-        }
-      } catch (error) {
-        console.error('Failed to load wishlist badges:', error);
-        document.getElementById('wishlistBadge').textContent = '0';
-        document.getElementById('wishlistBadgeMobile').textContent = '0';
-      }
-
-      try {
-        const cartData = await API.get('/cart');
-        if (cartData.success && cartData.cart) {
-          const count = cartData.cart.count || 0;
-          document.getElementById('cartBadge').textContent = count;
-          document.getElementById('cartBadgeMobile').textContent = count;
-        }
-      } catch (error) {
-        console.error('Failed to load cart badges:', error);
-        document.getElementById('cartBadge').textContent = '0';
-        document.getElementById('cartBadgeMobile').textContent = '0';
-      }
-    },
-
-    async trackOrder(orderNumber, email) {
+    async trackOrder(code) {
       const resultEl = document.getElementById('orderResult');
       const btn = document.getElementById('trackBtn');
 
       try {
         btn.disabled = true;
-        btn.innerHTML = '<span class="spinner"></span> Searching...';
+        btn.innerHTML = '<span class="spinner white"></span> Searching...';
 
-        // Try to fetch order by ID and email
-        const data = await API.get(`/orders/track?id=${encodeURIComponent(orderNumber)}&email=${encodeURIComponent(email)}`);
+        const data = await apiGet(`/orders/track?code=${encodeURIComponent(code)}`);
 
         if (data.success && data.order) {
           this.renderOrderResult(data.order);
           resultEl.style.display = 'block';
           resultEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          RecentCodes.add(code);
           showToast('Order found!', 'success');
         } else {
           this.renderNotFound();
           resultEl.style.display = 'block';
-          showToast(data.message || 'Order not found. Please check your order number and email.', 'error');
+          showToast(data.message || 'Order not found. Please check your tracking code.', 'error');
         }
       } catch (error) {
         console.error('Track order error:', error);
-        this.renderNotFound();
+        this.renderNotFound(error.message);
         resultEl.style.display = 'block';
-        showToast('Failed to track order. Please try again.', 'error');
+        showToast(error.message || 'Failed to track order. Please try again.', 'error');
       } finally {
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-search"></i> Track Order';
@@ -670,16 +757,8 @@
 
     renderOrderResult(order) {
       const resultEl = document.getElementById('orderResult');
-      const status = order.status || 'Processing';
+      const status = order.status || 'Pending';
       const statusClass = status.toLowerCase();
-      const statusColors = {
-        'pending': 'processing',
-        'processing': 'processing',
-        'shipped': 'shipped',
-        'delivered': 'delivered',
-        'cancelled': 'cancelled'
-      };
-      const statusColor = statusColors[statusClass] || 'processing';
       const statusIcons = {
         'pending': 'fa-clock',
         'processing': 'fa-spinner fa-pulse',
@@ -689,24 +768,66 @@
       };
       const statusIcon = statusIcons[statusClass] || 'fa-clock';
 
-      // Generate timeline based on order status
       const timelineItems = this.generateTimeline(order);
+      const items = order.order_items || [];
 
       resultEl.innerHTML = `
         <div class="result-header">
-          <h4>Order #${order.order_number || order.id}</h4>
-          <span class="status-badge ${statusColor}"><i class="fas ${statusIcon}"></i> ${status}</span>
+          <div>
+            <h4>
+              Tracking Code: ${order.tracking_code}
+              <button class="copy-btn" onclick="TrackController.copyCode('${order.tracking_code}')">
+                <i class="fas fa-copy"></i> Copy
+              </button>
+            </h4>
+            <span class="order-num">Order #${order.order_number || order.id}</span>
+          </div>
+          <span class="status-badge ${statusClass}"><i class="fas ${statusIcon}"></i> ${status}</span>
         </div>
         <div class="result-body">
           <div class="info-grid">
-            <div class="info-item"><strong>Estimated Delivery</strong><span>${order.estimated_delivery || '2-3 business days'}</span></div>
-            <div class="info-item"><strong>Total</strong><span>₦${Number(order.total || 0).toLocaleString()}</span></div>
-            <div class="info-item"><strong>Order Date</strong><span>${new Date(order.created_at).toLocaleDateString()}</span></div>
-            <div class="info-item"><strong>Status</strong><span>${status}</span></div>
+            <div class="info-item">
+              <strong>Estimated Delivery</strong>
+              <span>${order.estimated_delivery || '3–5 business days'}</span>
+            </div>
+            <div class="info-item">
+              <strong>Total</strong>
+              <span>₦${Number(order.total || 0).toLocaleString()}</span>
+            </div>
+            <div class="info-item">
+              <strong>Order Date</strong>
+              <span>${new Date(order.created_at).toLocaleDateString('en-NG', { year:'numeric', month:'short', day:'numeric' })}</span>
+            </div>
+            <div class="info-item">
+              <strong>Items</strong>
+              <span>${items.length} item${items.length === 1 ? '' : 's'}</span>
+            </div>
           </div>
 
+          <!-- Items -->
+          ${items.length ? `
+            <div class="order-items-list">
+              <h5>Items in this order</h5>
+              ${items.map(it => `
+                <div class="order-item-row">
+                  <img src="${it.product_image || 'https://via.placeholder.com/48x56'}" alt="${it.product_name}" loading="lazy" />
+                  <div class="details">
+                    <div class="name">${it.product_name}</div>
+                    <div class="variant">
+                      ${it.size ? `Size: ${it.size}` : ''}
+                      ${it.size && it.color ? ' · ' : ''}
+                      ${it.color ? `Color: ${it.color}` : ''}
+                      · Qty ${it.quantity}
+                    </div>
+                  </div>
+                  <div class="line-price">₦${Number(it.subtotal || 0).toLocaleString()}</div>
+                </div>
+              `).join('')}
+            </div>
+          ` : ''}
+
           <!-- Timeline -->
-          <div class="timeline" id="timeline">
+          <div class="timeline">
             ${timelineItems.map(item => `
               <div class="timeline-item">
                 <div class="dot ${item.status}"></div>
@@ -718,7 +839,7 @@
             `).join('')}
           </div>
 
-          <div style="margin-top:1rem; text-align:center; border-top:1px solid #ece2d8; padding-top:1rem; display:flex; gap:1rem; justify-content:center; flex-wrap:wrap;">
+          <div style="margin-top:1.2rem; text-align:center; border-top:1px solid #ece2d8; padding-top:1.2rem; display:flex; gap:1rem; justify-content:center; flex-wrap:wrap;">
             <a href="contact.html" class="btn-outline-ink">Need Help?</a>
             <a href="shop.html" class="btn-dark" style="padding:0.5rem 2rem; min-width:auto;">Continue Shopping</a>
           </div>
@@ -727,39 +848,75 @@
     },
 
     generateTimeline(order) {
-      const status = order.status || 'Processing';
-      const createdDate = new Date(order.created_at).toLocaleString();
+      const status = order.status || 'Pending';
+      const createdDate = new Date(order.created_at).toLocaleString('en-NG', {
+        year:'numeric', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'
+      });
 
-      // Default timeline
-      const timeline = [
-        { title: 'Order Placed', date: createdDate, status: 'completed' },
-        { title: 'Payment Confirmed', date: createdDate, status: 'completed' },
-        { title: 'Processing', date: status === 'Pending' ? '—' : createdDate, status: status === 'Pending' ? 'active' : 'completed' },
-        { title: 'Shipped', date: status === 'Shipped' || status === 'Delivered' ? '—' : '—', status: status === 'Shipped' || status === 'Delivered' ? 'completed' : 'pending' },
-        { title: 'Delivered', date: status === 'Delivered' ? '—' : '—', status: status === 'Delivered' ? 'completed' : 'pending' }
-      ];
+      // If we have real history from the DB, use it
+      if (order.order_status_history && order.order_status_history.length) {
+        const stages = ['Pending', 'Processing', 'Shipped', 'Delivered'];
+        const cancelled = status === 'Cancelled';
+        const currentIdx = stages.indexOf(status);
 
-      // If order is cancelled
-      if (status === 'Cancelled') {
-        timeline[2].status = 'cancelled';
-        timeline[3].status = 'cancelled';
-        timeline[4].status = 'cancelled';
-        timeline[2].title = 'Order Cancelled';
-        timeline[3].title = '';
-        timeline[4].title = '';
+        return stages.map((stage, idx) => {
+          const historyEntry = order.order_status_history.find(h => h.status === stage);
+          let dotStatus = 'pending';
+          if (cancelled && idx >= currentIdx) dotStatus = 'cancelled';
+          else if (idx < currentIdx) dotStatus = 'completed';
+          else if (idx === currentIdx) dotStatus = currentIdx === stages.length - 1 ? 'completed' : 'active';
+
+          return {
+            title: stage === 'Pending' ? 'Order Placed' : stage,
+            date: historyEntry ? new Date(historyEntry.created_at).toLocaleString('en-NG', {
+              month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'
+            }) : '—',
+            status: dotStatus
+          };
+        });
       }
 
-      return timeline;
+      // Fallback: derive from current status
+      const stages = [
+        { key: 'Pending',    label: 'Order Placed' },
+        { key: 'Processing', label: 'Processing' },
+        { key: 'Shipped',    label: 'Shipped' },
+        { key: 'Delivered',  label: 'Delivered' }
+      ];
+      const currentIdx = stages.findIndex(s => s.key === status);
+      const cancelled = status === 'Cancelled';
+
+      return stages.map((s, idx) => {
+        let dotStatus = 'pending';
+        if (cancelled && idx >= currentIdx) dotStatus = 'cancelled';
+        else if (idx < currentIdx) dotStatus = 'completed';
+        else if (idx === currentIdx) dotStatus = currentIdx === stages.length - 1 ? 'completed' : 'active';
+        return {
+          title: s.label,
+          date: idx === 0 ? createdDate : (idx <= currentIdx ? createdDate : '—'),
+          status: dotStatus
+        };
+      });
     },
 
-    renderNotFound() {
+    copyCode(code) {
+      navigator.clipboard.writeText(code).then(() => {
+        showToast('Tracking code copied!', 'success');
+      }).catch(() => {
+        showToast('Failed to copy', 'error');
+      });
+    },
+
+    renderNotFound(reason) {
       const resultEl = document.getElementById('orderResult');
       resultEl.innerHTML = `
         <div class="no-order">
           <i class="fas fa-box-open"></i>
           <h4>Order Not Found</h4>
-          <p style="color:#5a4e4e; font-size:0.9rem;">We couldn't find an order with the provided details. Please check your order number and email and try again.</p>
-          <div style="margin-top:1rem; display:flex; gap:1rem; justify-content:center; flex-wrap:wrap;">
+          <p style="color:#5a4e4e; font-size:0.9rem; max-width:380px; margin:0 auto;">
+            ${reason || "We couldn't find an order with that tracking code. Please double-check the code from your confirmation email."}
+          </p>
+          <div style="margin-top:1.2rem; display:flex; gap:1rem; justify-content:center; flex-wrap:wrap;">
             <button onclick="document.getElementById('trackForm').reset(); document.getElementById('orderResult').style.display='none';" class="btn-outline-ink">Try Again</button>
             <a href="contact.html" class="btn-dark" style="padding:0.5rem 2rem; min-width:auto;">Contact Support</a>
           </div>
@@ -768,22 +925,33 @@
     },
 
     setupEventListeners() {
-      // Track form
+      // Form submit
       const form = document.getElementById('trackForm');
-      form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const orderNumber = document.getElementById('orderNumber').value.trim();
-        const email = document.getElementById('trackEmail').value.trim();
+      const input = document.getElementById('trackingCode');
 
-        if (!orderNumber || !email) {
-          showToast('Please enter both order number and email.', 'error');
-          return;
-        }
-
-        await this.trackOrder(orderNumber, email);
+      // Auto-uppercase as user types
+      input.addEventListener('input', () => {
+        const start = input.selectionStart;
+        input.value = input.value.toUpperCase();
+        input.setSelectionRange(start, start);
       });
 
-      // Mobile menu toggle
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const code = input.value.trim().toUpperCase();
+        if (!code) {
+          showToast('Please enter your tracking code.', 'error');
+          return;
+        }
+        // Basic format validation (TRK-XXXXXXXX)
+        if (!/^TRK-[A-Z0-9]{6,12}$/.test(code)) {
+          showToast('Invalid format. It should look like TRK-8F3A9C21.', 'error');
+          return;
+        }
+        await this.trackOrder(code);
+      });
+
+      // Mobile menu
       const menuToggle = document.getElementById('menuToggle');
       const mobileMenu = document.getElementById('mobileMenu');
       if (menuToggle && mobileMenu) {
@@ -791,22 +959,17 @@
           e.stopPropagation();
           mobileMenu.classList.toggle('open');
           const icon = this.querySelector('i');
-          if (mobileMenu.classList.contains('open')) {
-            icon.className = 'fas fa-times';
-          } else {
-            icon.className = 'fas fa-bars';
-          }
+          icon.className = mobileMenu.classList.contains('open') ? 'fas fa-times' : 'fas fa-bars';
         });
         document.addEventListener('click', function(e) {
           if (!mobileMenu.contains(e.target) && !menuToggle.contains(e.target)) {
             mobileMenu.classList.remove('open');
-            const icon = menuToggle.querySelector('i');
-            if (icon) icon.className = 'fas fa-bars';
+            menuToggle.querySelector('i').className = 'fas fa-bars';
           }
         });
       }
 
-      // Search dropdown
+      // Search
       const searchToggle = document.getElementById('searchToggle');
       const searchDropdown = document.getElementById('searchDropdown');
       const searchInput = document.getElementById('searchInput');
@@ -816,9 +979,7 @@
         searchToggle.addEventListener('click', function(e) {
           e.stopPropagation();
           searchDropdown.classList.toggle('open');
-          if (searchDropdown.classList.contains('open')) {
-            searchInput.focus();
-          }
+          if (searchDropdown.classList.contains('open')) searchInput.focus();
         });
         document.addEventListener('click', function(e) {
           if (!searchDropdown.contains(e.target) && e.target !== searchToggle) {
@@ -828,50 +989,51 @@
       }
 
       if (searchInput) {
-        let searchTimeout;
+        let t;
         searchInput.addEventListener('input', function() {
-          clearTimeout(searchTimeout);
+          clearTimeout(t);
           const q = this.value.trim();
-          if (q === '') {
-            searchResults.innerHTML = '';
-            return;
-          }
-          searchTimeout = setTimeout(async () => {
+          if (!q) { searchResults.innerHTML = ''; return; }
+          t = setTimeout(async () => {
             try {
-              const data = await API.get(`/products/search?q=${encodeURIComponent(q)}`);
-              if (data.success && data.products) {
+              const data = await apiGet(`/products/search?q=${encodeURIComponent(q)}`);
+              if (data.success && data.products && data.products.length) {
                 searchResults.innerHTML = data.products.map(p => `
-                  <a href="/product/${p.id}" class="search-result-item">
-                    <img src="${p.images && p.images[0] || 'https://via.placeholder.com/40'}" alt="${p.name}" />
-                    <div class="info"><div>${p.name}</div><small>${p.category}</small></div>
+                  <a href="/product/${p.slug || p.id}" class="search-result-item">
+                    <img src="${(p.images && p.images[0]) || 'https://via.placeholder.com/40'}" alt="${p.name}" />
+                    <div class="info">
+                      <div>${p.name}</div>
+                      <small>₦${Number(p.sale_price || p.price).toLocaleString()}</small>
+                    </div>
                   </a>
                 `).join('');
               } else {
                 searchResults.innerHTML = '<div style="padding:0.75rem;text-align:center;color:#5a4e4e;font-size:0.85rem;">No products found</div>';
               }
-            } catch (error) {
-              console.error('Search error:', error);
+            } catch (err) {
+              searchResults.innerHTML = '<div style="padding:0.75rem;text-align:center;color:#dc3545;font-size:0.85rem;">Search unavailable</div>';
             }
           }, 300);
         });
       }
 
-      // Bottom nav active
+      // Bottom nav
       document.querySelectorAll('.bottom-nav a').forEach(link => {
         link.addEventListener('click', function() {
           document.querySelectorAll('.bottom-nav a').forEach(l => l.classList.remove('active'));
           this.classList.add('active');
         });
       });
+
+      // Live sync for wishlist across tabs
+      window.addEventListener('storage', (e) => {
+        if (e.key === WISHLIST_KEY) updateWishlistBadge();
+      });
+      window.addEventListener('wishlist:updated', updateWishlistBadge);
     }
   };
 
-  // ============================================
-  // INIT
-  // ============================================
-  document.addEventListener('DOMContentLoaded', () => {
-    TrackController.init();
-  });
+  document.addEventListener('DOMContentLoaded', () => TrackController.init());
 </script>
 </body>
 </html>

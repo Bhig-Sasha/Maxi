@@ -1,15 +1,15 @@
 // ============================================
-// MAXIFLAIR.NG - Backend API Server
+// MAXIFLAIR.NG - Backend API Server (Guest-Only)
 // ============================================
 
 const express = require('express');
-const session = require('express-session');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const cookieParser = require('cookie-parser');
+const crypto = require('crypto');
 const { body, validationResult } = require('express-validator');
 const { createClient } = require('@supabase/supabase-js');
-const crypto = require('crypto');
 require('dotenv').config();
 
 const app = express();
@@ -18,602 +18,459 @@ const PORT = process.env.PORT || 3000;
 // ============================================
 // SUPABASE CONFIGURATION
 // ============================================
-
+// Service role key: full DB access, bypasses RLS.
+// NEVER expose this to the frontend.
 const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: { persistSession: false, autoRefreshToken: false }
+});
 
-// Constants
+// ============================================
+// CONSTANTS
+// ============================================
 const CONSTANTS = {
-    ORDER_STATUS: {
-        PENDING: 'Pending',
-        PROCESSING: 'Processing',
-        SHIPPED: 'Shipped',
-        DELIVERED: 'Delivered',
-        CANCELLED: 'Cancelled',
-        REFUNDED: 'Refunded'
-    },
-    TAX_RATE: 0.075
+  ORDER_STATUS: {
+    PENDING:    'Pending',
+    PROCESSING: 'Processing',
+    SHIPPED:    'Shipped',
+    DELIVERED:  'Delivered',
+    CANCELLED:  'Cancelled'
+  },
+  FREE_SHIPPING_THRESHOLD: 50000,
+  SHIPPING_FEE: 3500,
+  SESSION_COOKIE: 'mxf_sid',
+  SESSION_MAX_AGE: 1000 * 60 * 60 * 24 * 90 // 90 days
 };
 
 // ============================================
 // MIDDLEWARE
 // ============================================
+app.use(helmet({ contentSecurityPolicy: false }));
 
-app.use(helmet({
-    contentSecurityPolicy: false,
-}));
-
-// CORS - Allow Vercel frontend
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || 
-    'https://maxi-flair.vercel.app,https://maxiflair.vercel.app')
-    .split(',')
-    .map(origin => origin.trim());
+// CORS — allow Vercel frontends to send cookies
+const allowedOrigins = (process.env.ALLOWED_ORIGINS ||
+  'https://maxi-flair.vercel.app,https://maxiflair.vercel.app,http://localhost:5173,http://localhost:3000')
+  .split(',').map(o => o.trim());
 
 app.use(cors({
-    origin: function (origin, callback) {
-        if (!origin) return callback(null, true);
-        if (process.env.NODE_ENV !== 'production') {
-            return callback(null, true);
-        }
-        if (allowedOrigins.indexOf(origin) !== -1) {
-            callback(null, true);
-        } else {
-            console.warn('CORS blocked for origin:', origin);
-            callback(new Error('Not allowed by CORS'));
-        }
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'X-Requested-With'],
-    exposedHeaders: ['Set-Cookie'],
-    maxAge: 86400
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    if (process.env.NODE_ENV !== 'production') return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    console.warn('CORS blocked:', origin);
+    callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  maxAge: 86400
 }));
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(cookieParser());
 app.use(morgan('dev'));
 
-// Session configuration
-app.use(session({
-    secret: process.env.SESSION_SECRET || 'maxiflair-super-secret-key-2025',
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-        secure: process.env.NODE_ENV === 'production',
-        maxAge: 1000 * 60 * 60 * 24,
-        sameSite: 'lax'
-    }
-}));
-
-// Generate guest ID
-const getGuestId = (req) => {
-    if (!req.session.guestId) {
-        req.session.guestId = 'guest_' + crypto.randomBytes(16).toString('hex');
-    }
-    return req.session.guestId;
-};
+// ============================================
+// GUEST SESSION MIDDLEWARE
+// ============================================
+// Sets an httpOnly cookie `mxf_sid` on first visit. Every cart/order
+// query filters by this session ID. No accounts, no passwords.
+function guestSession(req, res, next) {
+  let sid = req.cookies?.[CONSTANTS.SESSION_COOKIE];
+  if (!sid || typeof sid !== 'string' || sid.length < 16) {
+    sid = 'sess_' + crypto.randomBytes(16).toString('hex');
+    res.cookie(CONSTANTS.SESSION_COOKIE, sid, {
+      httpOnly: true,
+      sameSite: 'none',              // required for cross-site Vercel → Render
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: CONSTANTS.SESSION_MAX_AGE,
+      path: '/'
+    });
+  }
+  req.sessionId = sid;
+  next();
+}
+app.use(guestSession);
 
 // ============================================
 // VALIDATION
 // ============================================
-
 const validate = (req, res, next) => {
-    const errors = validationResult(req);
-    if (errors.isEmpty()) {
-        return next();
-    }
-    const extractedErrors = errors.array().map(err => ({
-        field: err.path,
-        message: err.msg
-    }));
-    return res.status(400).json({
-        success: false,
-        errors: extractedErrors
-    });
+  const errors = validationResult(req);
+  if (errors.isEmpty()) return next();
+  return res.status(400).json({
+    success: false,
+    errors: errors.array().map(e => ({ field: e.path, message: e.msg }))
+  });
 };
 
 const validations = {
-    guestOrder: [
-        body('email')
-            .trim()
-            .notEmpty().withMessage('Email is required for order confirmation')
-            .isEmail().withMessage('Please provide a valid email'),
-        body('fullName')
-            .trim()
-            .notEmpty().withMessage('Full name is required'),
-        body('phone')
-            .trim()
-            .notEmpty().withMessage('Phone number is required'),
-        validate
-    ]
+  guestOrder: [
+    body('fullName').trim().notEmpty().withMessage('Full name is required'),
+    body('email').trim().notEmpty().withMessage('Email is required')
+      .isEmail().withMessage('Please provide a valid email'),
+    body('phone').trim().notEmpty().withMessage('Phone number is required'),
+    body('address.line1').trim().notEmpty().withMessage('Street address is required'),
+    body('address.city').trim().notEmpty().withMessage('City is required'),
+    body('address.state').trim().notEmpty().withMessage('State is required'),
+    validate
+  ]
+};
+
+// ============================================
+// HELPERS
+// ============================================
+const formatProduct = (p) => {
+  if (!p) return null;
+  const hasSale = p.sale_price !== null && p.sale_price !== undefined &&
+                  Number(p.sale_price) < Number(p.price);
+  return {
+    ...p,
+    images: p.images || [],
+    image_url: (p.images && p.images[0]) || null,
+    effective_price: hasSale ? Number(p.sale_price) : Number(p.price),
+    on_sale: hasSale
+  };
+};
+
+const generateOrderNumber = () => {
+  const d = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const rand = Math.floor(1000 + Math.random() * 9000);
+  return `MXF-${d}-${rand}`;
+};
+
+const generateTrackingCode = () => {
+  return 'TRK-' + crypto.randomBytes(4).toString('hex').toUpperCase();
+};
+
+const calculateShipping = (subtotal) => {
+  return subtotal >= CONSTANTS.FREE_SHIPPING_THRESHOLD ? 0 : CONSTANTS.SHIPPING_FEE;
 };
 
 // ============================================
 // MODELS
 // ============================================
 
-// User Model - Guest Only
-const User = {
-    createGuest: async (userData) => {
-        const { fullName, email, phone } = userData;
-        const { data, error } = await supabase
-            .from('users')
-            .insert([{
-                full_name: fullName,
-                email: email,
-                phone: phone,
-                password_hash: null,
-                is_guest: true
-            }])
-            .select('id, full_name, email, phone, is_premium, member_since')
-            .single();
-        if (error) throw error;
-        return data;
-    },
-    findByEmail: async (email) => {
-        const { data, error } = await supabase
-            .from('users')
-            .select('*')
-            .eq('email', email)
-            .maybeSingle();
-        if (error) throw error;
-        return data;
-    },
-    addAddress: async (userId, addressData) => {
-        const { addressType, addressLine1, addressLine2, city, state, postalCode, country, isDefault } = addressData;
-        if (isDefault) {
-            await supabase
-                .from('user_addresses')
-                .update({ is_default: false })
-                .eq('user_id', userId);
-        }
-        const { data, error } = await supabase
-            .from('user_addresses')
-            .insert([{
-                user_id: userId,
-                address_type: addressType,
-                address_line1: addressLine1,
-                address_line2: addressLine2,
-                city: city,
-                state: state,
-                postal_code: postalCode,
-                country: country,
-                is_default: isDefault
-            }])
-            .select('*')
-            .single();
-        if (error) throw error;
-        return data;
-    }
-};
-
-// Product Model
+// ---------- PRODUCTS ----------
 const Product = {
-    findAll: async (filters = {}) => {
-        const { category, limit = 20, offset = 0, sort = 'newest' } = filters;
-        let query = supabase
-            .from('products')
-            .select(`
-                *,
-                product_images!left(image_url),
-                product_variants!left(size, color, color_code)
-            `)
-            .eq('is_active', true)
-            .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
+  // Fetch products with images + variants merged into flat arrays
+  findAll: async (filters = {}) => {
+    const { category, limit = 20, offset = 0, sort = 'newest' } = filters;
 
-        if (category && category !== 'All') {
-            if (category === 'New Arrivals' || category === 'Best Sellers') {
-                query = query.contains('tags', [category]);
-            } else {
-                query = query.eq('category', category);
-            }
-        }
+    let query = supabase
+      .from('products')
+      .select(`
+        *,
+        product_images(image_url, display_order),
+        product_variants(size, color, stock)
+      `)
+      .eq('is_active', true)
+      .range(Number(offset), Number(offset) + Number(limit) - 1);
 
-        switch(sort) {
-            case 'price-low': query = query.order('sale_price', { ascending: true, nullsFirst: false }); break;
-            case 'price-high': query = query.order('sale_price', { ascending: false, nullsFirst: false }); break;
-            case 'best-selling': query = query.order('review_count', { ascending: false }); break;
-            default: query = query.order('created_at', { ascending: false });
-        }
-
-        const { data, error } = await query;
-        if (error) throw error;
-        return data;
-    },
-    findById: async (id) => {
-        const { data, error } = await supabase
-            .from('products')
-            .select(`
-                *,
-                product_images!left(image_url, is_primary),
-                product_variants!left(size, color, color_code, stock_quantity)
-            `)
-            .eq('id', id)
-            .eq('is_active', true)
-            .maybeSingle();
-        if (error) throw error;
-        return data;
-    },
-    search: async (queryText) => {
-        const { data, error } = await supabase
-            .from('products')
-            .select(`
-                *,
-                product_images!left(image_url)
-            `)
-            .eq('is_active', true)
-            .or(`name.ilike.%${queryText}%,description.ilike.%${queryText}%,category.ilike.%${queryText}%`)
-            .order('created_at', { ascending: false })
-            .limit(10);
-        if (error) throw error;
-        return data;
-    },
-    getReviews: async (productId) => {
-        const { data, error } = await supabase
-            .from('reviews')
-            .select(`
-                *,
-                users!inner(full_name)
-            `)
-            .eq('product_id', productId)
-            .eq('is_approved', true)
-            .order('created_at', { ascending: false });
-        if (error) throw error;
-        return data.map(review => ({
-            ...review,
-            user_name: review.users.full_name
-        }));
-    },
-    addReview: async (productId, userId, rating, comment, title) => {
-        const { data, error } = await supabase
-            .from('reviews')
-            .insert([{
-                product_id: productId,
-                user_id: userId,
-                rating: rating,
-                title: title,
-                comment: comment,
-                is_approved: false
-            }])
-            .select('*')
-            .single();
-        if (error) throw error;
-        await Product.updateRating(productId);
-        return data;
-    },
-    updateRating: async (productId) => {
-        const { data: reviews } = await supabase
-            .from('reviews')
-            .select('rating')
-            .eq('product_id', productId)
-            .eq('is_approved', true);
-        const avgRating = reviews && reviews.length > 0 
-            ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length 
-            : 0;
-        await supabase
-            .from('products')
-            .update({
-                average_rating: avgRating,
-                review_count: reviews ? reviews.length : 0
-            })
-            .eq('id', productId);
+    if (category && category !== 'All') {
+      if (category === 'New Arrivals' || category === 'Best Sellers') {
+        query = query.contains('tags', [category]);
+      } else {
+        // Match by category name via a lookup
+        const { data: cat } = await supabase
+          .from('categories').select('id').eq('name', category).maybeSingle();
+        if (cat) query = query.eq('category_id', cat.id);
+        else query = query.eq('category_id', '00000000-0000-0000-0000-000000000000');
+      }
     }
+
+    switch (sort) {
+      case 'price-low':   query = query.order('price', { ascending: true }); break;
+      case 'price-high':  query = query.order('price', { ascending: false }); break;
+      case 'best-selling':query = query.order('review_count', { ascending: false }); break;
+      default:            query = query.order('created_at', { ascending: false });
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    // Flatten images + variants
+    return (data || []).map(p => {
+      const images = (p.product_images || [])
+        .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
+        .map(i => i.image_url);
+      return formatProduct({
+        ...p,
+        images,
+        colors: p.colors || [],
+        sizes: p.sizes || []
+      });
+    });
+  },
+
+  findById: async (id) => {
+    const { data, error } = await supabase
+      .from('products')
+      .select(`
+        *,
+        product_images(image_url, display_order),
+        product_variants(id, size, color, stock)
+      `)
+      .eq('id', id)
+      .eq('is_active', true)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return null;
+
+    const images = (data.product_images || [])
+      .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
+      .map(i => i.image_url);
+
+    return formatProduct({ ...data, images });
+  },
+
+  search: async (q) => {
+    const { data, error } = await supabase
+      .from('products')
+      .select(`*, product_images(image_url, display_order)`)
+      .eq('is_active', true)
+      .or(`name.ilike.%${q}%,description.ilike.%${q}%`)
+      .order('created_at', { ascending: false })
+      .limit(10);
+    if (error) throw error;
+
+    return (data || []).map(p => {
+      const images = (p.product_images || [])
+        .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
+        .map(i => i.image_url);
+      return formatProduct({ ...p, images });
+    });
+  },
+
+  getReviews: async (productId) => {
+    const { data, error } = await supabase
+      .from('reviews')
+      .select('id, product_id, user_name, rating, comment, created_at')
+      .eq('product_id', productId)
+      .eq('is_approved', true)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  },
+
+  addReview: async ({ productId, userName, email, rating, comment }) => {
+    const { data, error } = await supabase
+      .from('reviews')
+      .insert([{
+        product_id: productId,
+        user_name: userName,
+        user_email: email || null,
+        rating: Number(rating),
+        comment: comment || '',
+        is_approved: true
+      }])
+      .select('*')
+      .single();
+    if (error) throw error;
+    return data;
+  }
 };
 
-// Cart Model - Guest Only
+// ---------- CART ----------
 const Cart = {
-    getOrCreateGuest: async (guestId) => {
-        let { data, error } = await supabase
-            .from('cart')
-            .select('id')
-            .eq('session_id', guestId)
-            .maybeSingle();
-        if (error) throw error;
-        if (!data) {
-            const { data: newCart, error: createError } = await supabase
-                .from('cart')
-                .insert([{ session_id: guestId }])
-                .select('id')
-                .single();
-            if (createError) throw createError;
-            data = newCart;
-        }
-        return data.id;
-    },
-    getItems: async (cartId) => {
-        const { data, error } = await supabase
-            .from('cart_items')
-            .select(`
-                *,
-                products!inner(name, price, sale_price),
-                product_variants!left(size, color, color_code)
-            `)
-            .eq('cart_id', cartId);
-        if (error) throw error;
-        for (let item of data) {
-            const { data: image } = await supabase
-                .from('product_images')
-                .select('image_url')
-                .eq('product_id', item.product_id)
-                .eq('is_primary', true)
-                .limit(1)
-                .maybeSingle();
-            item.image_url = image?.image_url || null;
-            item.effective_price = item.products.sale_price || item.products.price;
-            item.name = item.products.name;
-        }
-        return data;
-    },
-    addItem: async (cartId, productId, variantId, quantity) => {
-        const { data: product, error: productError } = await supabase
-            .from('products')
-            .select('id, in_stock')
-            .eq('id', productId)
-            .maybeSingle();
-        if (productError) throw productError;
-        if (!product) throw new Error('Product not found');
-        if (!product.in_stock) throw new Error('Product is out of stock');
-        
-        let query = supabase
-            .from('cart_items')
-            .select('id, quantity')
-            .eq('cart_id', cartId)
-            .eq('product_id', productId);
-        if (variantId) {
-            query = query.eq('variant_id', variantId);
-        } else {
-            query = query.is('variant_id', null);
-        }
-        const { data: existing, error: existingError } = await query.maybeSingle();
-        if (existingError) throw existingError;
-        if (existing) {
-            const { error: updateError } = await supabase
-                .from('cart_items')
-                .update({ 
-                    quantity: existing.quantity + quantity,
-                    updated_at: new Date().toISOString()
-                })
-                .eq('id', existing.id);
-            if (updateError) throw updateError;
-        } else {
-            const { error: insertError } = await supabase
-                .from('cart_items')
-                .insert([{
-                    cart_id: cartId,
-                    product_id: productId,
-                    variant_id: variantId,
-                    quantity: quantity
-                }]);
-            if (insertError) throw insertError;
-        }
-        return true;
-    },
-    updateQuantity: async (cartId, productId, quantity) => {
-        if (quantity === 0) {
-            const { error } = await supabase
-                .from('cart_items')
-                .delete()
-                .eq('cart_id', cartId)
-                .eq('product_id', productId);
-            if (error) throw error;
-        } else {
-            const { error } = await supabase
-                .from('cart_items')
-                .update({ 
-                    quantity: quantity,
-                    updated_at: new Date().toISOString()
-                })
-                .eq('cart_id', cartId)
-                .eq('product_id', productId);
-            if (error) throw error;
-        }
-        return true;
-    },
-    removeItem: async (cartId, productId) => {
-        const { error } = await supabase
-            .from('cart_items')
-            .delete()
-            .eq('cart_id', cartId)
-            .eq('product_id', productId);
-        if (error) throw error;
-        return true;
-    },
-    clear: async (cartId) => {
-        const { error } = await supabase
-            .from('cart_items')
-            .delete()
-            .eq('cart_id', cartId);
-        if (error) throw error;
-        return true;
+  getItems: async (sessionId) => {
+    const { data, error } = await supabase
+      .from('cart_items')
+      .select(`
+        id, quantity, size, color, created_at,
+        product:products(
+          id, name, price, sale_price, in_stock, tags,
+          product_images(image_url, display_order)
+        )
+      `)
+      .eq('session_id', sessionId)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+
+    return (data || []).map(item => {
+      const p = item.product;
+      const images = (p?.product_images || [])
+        .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
+        .map(i => i.image_url);
+      const price = p?.sale_price != null && p.sale_price < p.price
+        ? Number(p.sale_price) : Number(p?.price || 0);
+      return {
+        id: item.id,
+        product_id: p?.id,
+        name: p?.name,
+        image_url: images[0] || null,
+        price,
+        quantity: item.quantity,
+        size: item.size,
+        color: item.color,
+        line_total: price * item.quantity,
+        in_stock: p?.in_stock ?? true
+      };
+    });
+  },
+
+  addItem: async (sessionId, productId, quantity = 1, size = null, color = null) => {
+    const { data: product, error: pErr } = await supabase
+      .from('products').select('id, in_stock').eq('id', productId).maybeSingle();
+    if (pErr) throw pErr;
+    if (!product) throw new Error('Product not found');
+    if (!product.in_stock) throw new Error('Product is out of stock');
+
+    // Look for matching row (same product + size + color)
+    let q = supabase.from('cart_items').select('id, quantity')
+      .eq('session_id', sessionId).eq('product_id', productId);
+    q = size  ? q.eq('size', size)   : q.is('size', null);
+    q = color ? q.eq('color', color) : q.is('color', null);
+
+    const { data: existing, error: eErr } = await q.maybeSingle();
+    if (eErr) throw eErr;
+
+    if (existing) {
+      const { error } = await supabase.from('cart_items')
+        .update({ quantity: existing.quantity + quantity, updated_at: new Date().toISOString() })
+        .eq('id', existing.id);
+      if (error) throw error;
+    } else {
+      const { error } = await supabase.from('cart_items').insert([{
+        session_id: sessionId,
+        product_id: productId,
+        quantity: Number(quantity) || 1,
+        size: size || null,
+        color: color || null
+      }]);
+      if (error) throw error;
     }
+    return true;
+  },
+
+  updateQuantity: async (sessionId, itemId, quantity) => {
+    if (quantity <= 0) {
+      const { error } = await supabase.from('cart_items')
+        .delete().eq('session_id', sessionId).eq('id', itemId);
+      if (error) throw error;
+    } else {
+      const { error } = await supabase.from('cart_items')
+        .update({ quantity, updated_at: new Date().toISOString() })
+        .eq('session_id', sessionId).eq('id', itemId);
+      if (error) throw error;
+    }
+    return true;
+  },
+
+  removeItem: async (sessionId, itemId) => {
+    const { error } = await supabase.from('cart_items')
+      .delete().eq('session_id', sessionId).eq('id', itemId);
+    if (error) throw error;
+    return true;
+  },
+
+  clear: async (sessionId) => {
+    const { error } = await supabase.from('cart_items')
+      .delete().eq('session_id', sessionId);
+    if (error) throw error;
+    return true;
+  }
 };
 
-// Wishlist Model - Guest Only
-const Wishlist = {
-    getGuestItems: async (sessionId) => {
-        const { data, error } = await supabase
-            .from('wishlist')
-            .select(`
-                *,
-                products!inner(name, price, sale_price, in_stock)
-            `)
-            .eq('session_id', sessionId)
-            .order('created_at', { ascending: false });
-        if (error) throw error;
-        for (let item of data) {
-            const { data: image } = await supabase
-                .from('product_images')
-                .select('image_url')
-                .eq('product_id', item.product_id)
-                .eq('is_primary', true)
-                .limit(1)
-                .maybeSingle();
-            item.image_url = image?.image_url || null;
-            item.effective_price = item.products.sale_price || item.products.price;
-            item.name = item.products.name;
-        }
-        return data;
-    },
-    toggleGuest: async (sessionId, productId) => {
-        const { data: product, error: productError } = await supabase
-            .from('products')
-            .select('id')
-            .eq('id', productId)
-            .eq('is_active', true)
-            .maybeSingle();
-        if (productError) throw productError;
-        if (!product) throw new Error('Product not found');
-        const { data: existing, error: existingError } = await supabase
-            .from('wishlist')
-            .select('id')
-            .eq('session_id', sessionId)
-            .eq('product_id', productId)
-            .maybeSingle();
-        if (existingError) throw existingError;
-        if (existing) {
-            await supabase.from('wishlist').delete().eq('id', existing.id);
-            return { action: 'removed', message: 'Removed from wishlist' };
-        } else {
-            await supabase.from('wishlist').insert([{
-                session_id: sessionId,
-                product_id: productId
-            }]);
-            return { action: 'added', message: 'Added to wishlist' };
-        }
-    },
-    removeGuestItem: async (sessionId, productId) => {
-        const { error } = await supabase
-            .from('wishlist')
-            .delete()
-            .eq('session_id', sessionId)
-            .eq('product_id', productId);
-        if (error) throw error;
-        return true;
-    }
-};
-
-// Order Model - Guest Only
+// ---------- ORDERS ----------
 const Order = {
-    createGuestOrder: async (guestData, orderData) => {
-        const { fullName, email, phone, address } = guestData;
-        const { shippingCost = 0, discount = 0 } = orderData;
-        let user = await User.findByEmail(email);
-        if (!user) {
-            user = await User.createGuest({ fullName, email, phone });
-        }
-        let addressId = null;
-        if (address) {
-            const addrResult = await User.addAddress(user.id, {
-                addressType: 'Home',
-                addressLine1: address.line1,
-                addressLine2: address.line2 || '',
-                city: address.city,
-                state: address.state,
-                postalCode: address.postalCode || '',
-                country: 'Nigeria',
-                isDefault: true
-            });
-            addressId = addrResult.id;
-        }
-        const guestId = orderData.guestId;
-        const { data: guestCart, error: guestError } = await supabase
-            .from('cart')
-            .select('id')
-            .eq('session_id', guestId)
-            .maybeSingle();
-        if (guestError) throw guestError;
-        if (!guestCart) throw new Error('No items in cart');
-        const guestCartId = guestCart.id;
-        const items = await Cart.getItems(guestCartId);
-        if (items.length === 0) throw new Error('Cart is empty');
-        const subtotal = items.reduce((sum, item) => sum + (item.effective_price * item.quantity), 0);
-        const tax = subtotal * CONSTANTS.TAX_RATE;
-        const total = subtotal + shippingCost + tax - discount;
-        const orderNumber = `MXF-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${Math.floor(1000 + Math.random() * 9000)}`;
-        const { data: order, error: orderError } = await supabase
-            .from('orders')
-            .insert([{
-                order_number: orderNumber,
-                user_id: user.id,
-                subtotal: subtotal,
-                shipping_cost: shippingCost,
-                tax: tax,
-                discount: discount,
-                total: total,
-                shipping_address_id: addressId,
-                status: 'Pending'
-            }])
-            .select('id, order_number, created_at')
-            .single();
-        if (orderError) throw orderError;
-        for (const item of items) {
-            await supabase.from('order_items').insert([{
-                order_id: order.id,
-                product_id: item.product_id,
-                variant_id: item.variant_id,
-                product_name: item.name,
-                product_price: item.effective_price,
-                quantity: item.quantity,
-                size: item.size,
-                color: item.color,
-                total_price: item.effective_price * item.quantity
-            }]);
-            const { data: product } = await supabase
-                .from('products')
-                .select('stock_quantity')
-                .eq('id', item.product_id)
-                .single();
-            const newStock = product.stock_quantity - item.quantity;
-            await supabase
-                .from('products')
-                .update({
-                    stock_quantity: newStock,
-                    in_stock: newStock > 0
-                })
-                .eq('id', item.product_id);
-        }
-        await Cart.clear(guestCartId);
-        return { order, user };
-    },
-    getOrderById: async (orderId, email) => {
-        const user = await User.findByEmail(email);
-        if (!user) return null;
-        const { data, error } = await supabase
-            .from('orders')
-            .select(`
-                *,
-                users!inner(full_name, email, phone),
-                user_addresses!left(address_line1, address_line2, city, state, postal_code),
-                order_items!left(
-                    product_name,
-                    product_price,
-                    quantity,
-                    size,
-                    color,
-                    total_price
-                )
-            `)
-            .eq('id', orderId)
-            .eq('user_id', user.id)
-            .maybeSingle();
-        if (error) throw error;
-        return data;
-    },
-    getOrdersByEmail: async (email) => {
-        const user = await User.findByEmail(email);
-        if (!user) return [];
-        const { data, error } = await supabase
-            .from('orders')
-            .select(`
-                *,
-                order_items(count)
-            `)
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false });
-        if (error) throw error;
-        return data;
+  create: async (sessionId, customer, opts = {}) => {
+    // 1. Pull cart
+    const items = await Cart.getItems(sessionId);
+    if (!items.length) throw new Error('Your cart is empty');
+
+    // 2. Compute totals
+    const subtotal = items.reduce((s, i) => s + i.line_total, 0);
+    const shippingFee = opts.shippingFee != null
+      ? Number(opts.shippingFee)
+      : calculateShipping(subtotal);
+    const total = subtotal + shippingFee;
+
+    // 3. Insert order (order_number + tracking_code auto-set by DB default)
+    const { data: order, error: oErr } = await supabase
+      .from('orders')
+      .insert([{
+        session_id: sessionId,
+        customer_name: customer.fullName,
+        customer_email: customer.email.toLowerCase(),
+        customer_phone: customer.phone,
+        shipping_address: customer.address,
+        subtotal,
+        shipping_fee: shippingFee,
+        total,
+        status: 'Pending',
+        payment_method: opts.paymentMethod || 'pay_on_delivery',
+        payment_status: 'pending',
+        estimated_delivery: opts.estimatedDelivery || '3-5 business days'
+      }])
+      .select('id, order_number, tracking_code, total, status, created_at')
+      .single();
+    if (oErr) throw oErr;
+
+    // 4. Insert order items (snapshot product info)
+    const orderItems = items.map(i => ({
+      order_id: order.id,
+      product_id: i.product_id,
+      product_name: i.name,
+      product_image: i.image_url,
+      size: i.size,
+      color: i.color,
+      quantity: i.quantity,
+      unit_price: i.price,
+      subtotal: i.line_total
+    }));
+    const { error: oiErr } = await supabase.from('order_items').insert(orderItems);
+    if (oiErr) throw oiErr;
+
+    // 5. Clear cart
+    await Cart.clear(sessionId);
+
+    return { order, items: orderItems };
+  },
+
+  // Public tracking — lookup by tracking code only (no email required)
+  trackByCode: async (code) => {
+    const { data, error } = await supabase
+      .from('orders')
+      .select(`
+        id, order_number, tracking_code, status, total, subtotal,
+        shipping_fee, estimated_delivery, created_at, updated_at,
+        customer_name, customer_email,
+        order_items(product_name, product_image, size, color, quantity, unit_price, subtotal),
+        order_status_history(status, note, created_at)
+      `)
+      .eq('tracking_code', code.toUpperCase())
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return null;
+
+    // Sort history chronologically
+    if (data.order_status_history) {
+      data.order_status_history.sort((a, b) =>
+        new Date(a.created_at) - new Date(b.created_at));
     }
+    return data;
+  },
+
+  // Fallback: track by order number + email (kept for edge cases)
+  trackByNumberAndEmail: async (orderNumber, email) => {
+    const { data, error } = await supabase
+      .from('orders')
+      .select(`
+        id, order_number, tracking_code, status, total, subtotal,
+        shipping_fee, estimated_delivery, created_at, updated_at,
+        customer_name, customer_email,
+        order_items(product_name, product_image, size, color, quantity, unit_price, subtotal),
+        order_status_history(status, note, created_at)
+      `)
+      .eq('order_number', orderNumber)
+      .eq('customer_email', email.toLowerCase())
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  }
 };
 
 // ============================================
@@ -621,550 +478,324 @@ const Order = {
 // ============================================
 
 const productController = {
-    getAllProducts: async (req, res) => {
-        try {
-            const { category, limit, offset, sort } = req.query;
-            const products = await Product.findAll({ category, limit, offset, sort });
-            res.json({ success: true, products, count: products.length });
-        } catch (error) {
-            console.error('Get products error:', error);
-            res.status(500).json({ success: false, message: 'Failed to fetch products' });
-        }
-    },
-    getProductById: async (req, res) => {
-        try {
-            const { id } = req.params;
-            const product = await Product.findById(id);
-            if (!product) {
-                return res.status(404).json({ success: false, message: 'Product not found' });
-            }
-            res.json({ success: true, product });
-        } catch (error) {
-            console.error('Get product error:', error);
-            res.status(500).json({ success: false, message: 'Failed to fetch product' });
-        }
-    },
-    getProductsByCategory: async (req, res) => {
-        try {
-            const { category } = req.params;
-            const products = await Product.findAll({ category });
-            res.json({ success: true, products, count: products.length });
-        } catch (error) {
-            console.error('Get products by category error:', error);
-            res.status(500).json({ success: false, message: 'Failed to fetch products' });
-        }
-    },
-    searchProducts: async (req, res) => {
-        try {
-            const { q } = req.query;
-            if (!q) {
-                return res.json({ success: true, products: [], count: 0 });
-            }
-            const products = await Product.search(q);
-            res.json({ success: true, products, count: products.length });
-        } catch (error) {
-            console.error('Search products error:', error);
-            res.status(500).json({ success: false, message: 'Failed to search products' });
-        }
-    },
-    getProductReviews: async (req, res) => {
-        try {
-            const { id } = req.params;
-            const reviews = await Product.getReviews(id);
-            res.json({ success: true, reviews });
-        } catch (error) {
-            console.error('Get reviews error:', error);
-            res.status(500).json({ success: false, message: 'Failed to fetch reviews' });
-        }
-    },
-    addReview: async (req, res) => {
-        try {
-            const { id } = req.params;
-            const { email, rating, title, comment } = req.body;
-            if (!email) {
-                return res.status(400).json({ success: false, message: 'Email is required' });
-            }
-            let user = await User.findByEmail(email);
-            if (!user) {
-                const { data, error } = await supabase
-                    .from('users')
-                    .insert([{
-                        full_name: email.split('@')[0],
-                        email: email,
-                        phone: '0000000000',
-                        password_hash: null,
-                        is_guest: true
-                    }])
-                    .select('id')
-                    .single();
-                if (error) throw error;
-                user = data;
-            }
-            const review = await Product.addReview(id, user.id, rating, comment, title);
-            res.status(201).json({ success: true, message: 'Review added successfully', review });
-        } catch (error) {
-            console.error('Add review error:', error);
-            res.status(500).json({ success: false, message: 'Failed to add review' });
-        }
+  getAll: async (req, res) => {
+    try {
+      const { category, limit, offset, sort } = req.query;
+      const products = await Product.findAll({ category, limit, offset, sort });
+      res.json({ success: true, products, count: products.length });
+    } catch (err) {
+      console.error('Get products error:', err);
+      res.status(500).json({ success: false, message: 'Failed to fetch products' });
     }
+  },
+
+  getById: async (req, res) => {
+    try {
+      const product = await Product.findById(req.params.id);
+      if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
+      res.json({ success: true, product });
+    } catch (err) {
+      console.error('Get product error:', err);
+      res.status(500).json({ success: false, message: 'Failed to fetch product' });
+    }
+  },
+
+  getByCategory: async (req, res) => {
+    try {
+      const products = await Product.findAll({ category: req.params.category });
+      res.json({ success: true, products, count: products.length });
+    } catch (err) {
+      console.error('Get by category error:', err);
+      res.status(500).json({ success: false, message: 'Failed to fetch products' });
+    }
+  },
+
+  search: async (req, res) => {
+    try {
+      const q = (req.query.q || '').trim();
+      if (!q) return res.json({ success: true, products: [], count: 0 });
+      const products = await Product.search(q);
+      res.json({ success: true, products, count: products.length });
+    } catch (err) {
+      console.error('Search error:', err);
+      res.status(500).json({ success: false, message: 'Failed to search products' });
+    }
+  },
+
+  getReviews: async (req, res) => {
+    try {
+      const reviews = await Product.getReviews(req.params.id);
+      res.json({ success: true, reviews });
+    } catch (err) {
+      console.error('Get reviews error:', err);
+      res.status(500).json({ success: false, message: 'Failed to fetch reviews' });
+    }
+  },
+
+  addReview: async (req, res) => {
+    try {
+      const { userName, email, rating, comment } = req.body;
+      if (!userName || !rating) {
+        return res.status(400).json({ success: false, message: 'Name and rating are required' });
+      }
+      const review = await Product.addReview({
+        productId: req.params.id,
+        userName, email,
+        rating, comment
+      });
+      res.status(201).json({ success: true, message: 'Review submitted', review });
+    } catch (err) {
+      console.error('Add review error:', err);
+      res.status(500).json({ success: false, message: 'Failed to add review' });
+    }
+  }
 };
 
 const cartController = {
-    getCart: async (req, res) => {
-        try {
-            const guestId = getGuestId(req);
-            const cartId = await Cart.getOrCreateGuest(guestId);
-            const items = await Cart.getItems(cartId);
-            const subtotal = items.reduce((sum, item) => sum + (item.effective_price * item.quantity), 0);
-            res.json({
-                success: true,
-                cart: {
-                    id: cartId,
-                    items: items,
-                    subtotal: subtotal,
-                    total: subtotal,
-                    count: items.reduce((sum, item) => sum + item.quantity, 0)
-                },
-                isGuest: true
-            });
-        } catch (error) {
-            console.error('Get cart error:', error);
-            res.status(500).json({ success: false, message: 'Failed to fetch cart' });
-        }
-    },
-    addToCart: async (req, res) => {
-        try {
-            const { productId, variantId, quantity = 1 } = req.body;
-            const guestId = getGuestId(req);
-            const cartId = await Cart.getOrCreateGuest(guestId);
-            await Cart.addItem(cartId, productId, variantId, quantity);
-            res.json({ success: true, message: 'Added to cart successfully' });
-        } catch (error) {
-            console.error('Add to cart error:', error);
-            res.status(500).json({ success: false, message: error.message || 'Failed to add to cart' });
-        }
-    },
-    updateCartItem: async (req, res) => {
-        try {
-            const { productId, quantity } = req.body;
-            if (quantity < 0) {
-                return res.status(400).json({ success: false, message: 'Invalid quantity' });
-            }
-            const guestId = getGuestId(req);
-            const cartId = await Cart.getOrCreateGuest(guestId);
-            await Cart.updateQuantity(cartId, productId, quantity);
-            res.json({ success: true, message: 'Cart updated successfully' });
-        } catch (error) {
-            console.error('Update cart error:', error);
-            res.status(500).json({ success: false, message: 'Failed to update cart' });
-        }
-    },
-    removeFromCart: async (req, res) => {
-        try {
-            const { productId } = req.params;
-            const guestId = getGuestId(req);
-            const cartId = await Cart.getOrCreateGuest(guestId);
-            await Cart.removeItem(cartId, productId);
-            res.json({ success: true, message: 'Removed from cart successfully' });
-        } catch (error) {
-            console.error('Remove from cart error:', error);
-            res.status(500).json({ success: false, message: 'Failed to remove from cart' });
-        }
-    },
-    clearCart: async (req, res) => {
-        try {
-            const guestId = getGuestId(req);
-            const cartId = await Cart.getOrCreateGuest(guestId);
-            await Cart.clear(cartId);
-            res.json({ success: true, message: 'Cart cleared successfully' });
-        } catch (error) {
-            console.error('Clear cart error:', error);
-            res.status(500).json({ success: false, message: 'Failed to clear cart' });
-        }
+  getCart: async (req, res) => {
+    try {
+      const items = await Cart.getItems(req.sessionId);
+      const subtotal = items.reduce((s, i) => s + i.line_total, 0);
+      const shipping = calculateShipping(subtotal);
+      res.json({
+        success: true,
+        cart: {
+          items,
+          subtotal,
+          shipping_fee: shipping,
+          total: subtotal + shipping,
+          count: items.reduce((s, i) => s + i.quantity, 0)
+        },
+        isGuest: true
+      });
+    } catch (err) {
+      console.error('Get cart error:', err);
+      res.status(500).json({ success: false, message: 'Failed to fetch cart' });
     }
-};
+  },
 
-const wishlistController = {
-    getWishlist: async (req, res) => {
-        try {
-            const guestId = getGuestId(req);
-            const items = await Wishlist.getGuestItems(guestId);
-            res.json({ success: true, wishlist: items, count: items.length, isGuest: true });
-        } catch (error) {
-            console.error('Get wishlist error:', error);
-            res.status(500).json({ success: false, message: 'Failed to fetch wishlist' });
-        }
-    },
-    toggleWishlist: async (req, res) => {
-        try {
-            const { productId } = req.body;
-            const guestId = getGuestId(req);
-            const result = await Wishlist.toggleGuest(guestId, productId);
-            res.json({ success: true, message: result.message, action: result.action, isGuest: true });
-        } catch (error) {
-            console.error('Toggle wishlist error:', error);
-            res.status(500).json({ success: false, message: error.message || 'Failed to update wishlist' });
-        }
-    },
-    removeFromWishlist: async (req, res) => {
-        try {
-            const { productId } = req.params;
-            const guestId = getGuestId(req);
-            await Wishlist.removeGuestItem(guestId, productId);
-            res.json({ success: true, message: 'Removed from wishlist successfully' });
-        } catch (error) {
-            console.error('Remove from wishlist error:', error);
-            res.status(500).json({ success: false, message: 'Failed to remove from wishlist' });
-        }
+  addToCart: async (req, res) => {
+    try {
+      const { productId, quantity = 1, size = null, color = null } = req.body;
+      if (!productId) return res.status(400).json({ success: false, message: 'productId is required' });
+      await Cart.addItem(req.sessionId, productId, quantity, size, color);
+      res.json({ success: true, message: 'Added to cart' });
+    } catch (err) {
+      console.error('Add to cart error:', err);
+      res.status(400).json({ success: false, message: err.message || 'Failed to add to cart' });
     }
+  },
+
+  updateItem: async (req, res) => {
+    try {
+      const { itemId, quantity } = req.body;
+      if (!itemId || quantity == null) {
+        return res.status(400).json({ success: false, message: 'itemId and quantity required' });
+      }
+      await Cart.updateQuantity(req.sessionId, itemId, Number(quantity));
+      res.json({ success: true, message: 'Cart updated' });
+    } catch (err) {
+      console.error('Update cart error:', err);
+      res.status(500).json({ success: false, message: 'Failed to update cart' });
+    }
+  },
+
+  removeItem: async (req, res) => {
+    try {
+      await Cart.removeItem(req.sessionId, req.params.itemId);
+      res.json({ success: true, message: 'Item removed' });
+    } catch (err) {
+      console.error('Remove item error:', err);
+      res.status(500).json({ success: false, message: 'Failed to remove item' });
+    }
+  },
+
+  clear: async (req, res) => {
+    try {
+      await Cart.clear(req.sessionId);
+      res.json({ success: true, message: 'Cart cleared' });
+    } catch (err) {
+      console.error('Clear cart error:', err);
+      res.status(500).json({ success: false, message: 'Failed to clear cart' });
+    }
+  }
 };
 
 const orderController = {
-    createGuestOrder: async (req, res) => {
-        try {
-            const { fullName, email, phone, address, shippingCost, discount } = req.body;
-            if (!fullName || !email || !phone) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Please provide full name, email, and phone number'
-                });
-            }
-            const guestId = getGuestId(req);
-            const result = await Order.createGuestOrder(
-                { fullName, email, phone, address },
-                { guestId, shippingCost: shippingCost || 0, discount: discount || 0 }
-            );
-            res.json({
-                success: true,
-                message: 'Order placed successfully! Check your email for confirmation.',
-                order: result.order,
-                user: result.user,
-                isGuest: true
-            });
-        } catch (error) {
-            console.error('Create guest order error:', error);
-            res.status(500).json({ success: false, message: error.message || 'Failed to place order' });
-        }
-    },
-    getOrderById: async (req, res) => {
-        try {
-            const { id } = req.params;
-            const { email } = req.query;
-            if (!email) {
-                return res.status(400).json({ success: false, message: 'Email is required to view orders' });
-            }
-            const order = await Order.getOrderById(id, email);
-            if (!order) {
-                return res.status(404).json({ success: false, message: 'Order not found' });
-            }
-            res.json({ success: true, order });
-        } catch (error) {
-            console.error('Get order error:', error);
-            res.status(500).json({ success: false, message: 'Failed to fetch order' });
-        }
-    },
-    getOrdersByEmail: async (req, res) => {
-        try {
-            const { email } = req.query;
-            if (!email) {
-                return res.status(400).json({ success: false, message: 'Email is required to view orders' });
-            }
-            const orders = await Order.getOrdersByEmail(email);
-            res.json({ success: true, orders, count: orders.length });
-        } catch (error) {
-            console.error('Get orders error:', error);
-            res.status(500).json({ success: false, message: 'Failed to fetch orders' });
-        }
+  createGuestOrder: async (req, res) => {
+    try {
+      const { fullName, email, phone, address, shippingFee, paymentMethod, estimatedDelivery } = req.body;
+
+      const result = await Order.create(
+        req.sessionId,
+        { fullName, email, phone, address },
+        { shippingFee, paymentMethod, estimatedDelivery }
+      );
+
+      res.status(201).json({
+        success: true,
+        message: 'Order placed successfully!',
+        order: {
+          id: result.order.id,
+          order_number: result.order.order_number,
+          tracking_code: result.order.tracking_code, // ← show this to the customer
+          total: result.order.total,
+          status: result.order.status,
+          created_at: result.order.created_at
+        },
+        items: result.items,
+        isGuest: true
+      });
+    } catch (err) {
+      console.error('Create order error:', err);
+      res.status(400).json({ success: false, message: err.message || 'Failed to place order' });
     }
+  },
+
+  // Public tracking — by tracking code (primary) OR order_number + email (fallback)
+  trackOrder: async (req, res) => {
+    try {
+      const { code, id, email } = req.query;
+
+      let order = null;
+      if (code) {
+        order = await Order.trackByCode(code.trim());
+      } else if (id && email) {
+        order = await Order.trackByNumberAndEmail(id.trim(), email.trim());
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: 'Provide a tracking code, or order number + email'
+        });
+      }
+
+      if (!order) {
+        return res.status(404).json({ success: false, message: 'Order not found' });
+      }
+
+      res.json({ success: true, order });
+    } catch (err) {
+      console.error('Track order error:', err);
+      res.status(500).json({ success: false, message: 'Failed to track order' });
+    }
+  }
+};
+
+const newsletterController = {
+  subscribe: async (req, res) => {
+    try {
+      const email = (req.body.email || '').trim().toLowerCase();
+      if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+        return res.status(400).json({ success: false, message: 'Valid email required' });
+      }
+      const { error } = await supabase
+        .from('newsletter_subscribers')
+        .upsert([{ email }], { onConflict: 'email' });
+      if (error) throw error;
+      res.json({ success: true, message: 'Subscribed!' });
+    } catch (err) {
+      console.error('Newsletter error:', err);
+      res.status(500).json({ success: false, message: 'Failed to subscribe' });
+    }
+  }
 };
 
 // ============================================
-// ADMIN ROUTES
+// ROUTES
 // ============================================
 
-app.get('/api/admin/about-content', async (req, res) => {
-    try {
-        const { data, error } = await supabase
-            .from('about_content')
-            .select('*')
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-        if (error) throw error;
-        if (data) {
-            res.json({ success: true, content: data.content });
-        } else {
-            // Return default content
-            const defaultContent = {
-                hero: {
-                    title: 'Our Story',
-                    subtitle: 'Elegance in every thread',
-                    image: 'https://images.unsplash.com/photo-1550614000-4b95d4662231?auto=format&fit=crop&q=80&w=2000'
-                },
-                story: {
-                    tagline: 'At Maxiflair.ng, we believe every woman deserves to feel elegant and confident.',
-                    content: [
-                        'Founded in the heart of Nigeria, MAXIFLAIR.NG was born out of a simple desire: to provide modern women with high-quality, beautifully tailored maxi skirts and dresses that don\'t compromise on comfort or style.',
-                        'Whether you\'re a student looking for that perfect weekend outfit, a working professional needing versatile office-to-evening wear, or a fashion lover attending a special event, our collections are designed with you in mind.'
-                    ]
-                },
-                quality: {
-                    title: 'Our Commitment to Quality',
-                    content: [
-                        'We meticulously source our fabrics—from breathable cottons and linens perfect for the tropical climate, to luxurious silks and velvets for those unforgettable nights.',
-                        'Operating from Benin and Asaba, we proudly deliver nationwide. Our seamless online shopping experience, secure payment gateways, and dedicated customer service team ensure you feel valued.'
-                    ]
-                },
-                delivery: {
-                    title: 'Delivery Information',
-                    subtitle: 'Fast, secure & nationwide delivery — because your style shouldn\'t wait.',
-                    processing: {
-                        label: 'Orders are processed within 24–48 hours.',
-                        weekend: 'Orders placed on weekends are processed on Monday.'
-                    },
-                    times: [
-                        { location: 'Benin', time: '1 Day' },
-                        { location: 'Lagos', time: '2–3 Days' },
-                        { location: 'Abuja', time: '2–4 Days' },
-                        { location: 'Other States', time: '3–5 Days' }
-                    ],
-                    partners: ['GIG Logistics', 'ABC Cargo', 'Peace Mass', 'Local Dispatch']
-                },
-                returns: {
-                    title: 'Returns & Exchanges',
-                    subtitle: 'Shop with confidence — we make returns and exchanges simple.',
-                    policy: {
-                        title: 'Return within 7 days of receiving your order.',
-                        items: ['Unused', 'Unwashed', 'Original Tag', 'Original Packaging']
-                    },
-                    cannotReturn: [
-                        'Sale Items — final sale items cannot be returned.',
-                        'Damaged by Customer — wear and tear, stains, or alterations.',
-                        'Worn Clothing — items that have been worn or washed.'
-                    ],
-                    exchange: {
-                        title: 'Wrong size? Wrong colour? We exchange within 7 days.',
-                        points: [
-                            'Exchange for a different size or colour.',
-                            'Subject to stock availability.',
-                            'Free exchange shipping on orders over ₦50,000.'
-                        ]
-                    }
-                },
-                size: {
-                    title: 'Size Guide',
-                    subtitle: 'Find your perfect fit for maxi dresses, skirts, and tops.',
-                    dresses: {
-                        headers: ['Size', 'Bust (cm)', 'Waist (cm)', 'Hip (cm)', 'Length (cm)'],
-                        rows: [
-                            ['XS', '82', '64', '90', '145'],
-                            ['S', '87', '69', '95', '146'],
-                            ['M', '92', '74', '100', '147'],
-                            ['L', '97', '79', '105', '148'],
-                            ['XL', '102', '84', '110', '149'],
-                            ['XXL', '107', '89', '115', '150']
-                        ]
-                    },
-                    skirts: {
-                        headers: ['Size', 'Waist (cm)', 'Hip (cm)', 'Length (cm)'],
-                        rows: [
-                            ['XS', '64', '90', '105'],
-                            ['S', '69', '95', '106'],
-                            ['M', '74', '100', '107'],
-                            ['L', '79', '105', '108'],
-                            ['XL', '84', '110', '109'],
-                            ['XXL', '89', '115', '110']
-                        ]
-                    },
-                    tops: {
-                        headers: ['Size', 'Bust (cm)', 'Waist (cm)', 'Shoulder (cm)'],
-                        rows: [
-                            ['XS', '82', '64', '36'],
-                            ['S', '87', '69', '37'],
-                            ['M', '92', '74', '38'],
-                            ['L', '97', '79', '39'],
-                            ['XL', '102', '84', '40'],
-                            ['XXL', '107', '89', '41']
-                        ]
-                    }
-                },
-                faq: {
-                    title: 'Frequently Asked Questions',
-                    subtitle: 'Find quick answers to the most common questions.',
-                    items: [
-                        { question: 'How do I place an order?', answer: 'Simply browse our collection, select your preferred items, choose your size and colour, then proceed to checkout.' },
-                        { question: 'What payment methods do you accept?', answer: 'We accept debit/credit cards (Visa, Mastercard), bank transfers, and secure mobile payments via Paystack.' },
-                        { question: 'How long does delivery take?', answer: 'Delivery times vary by location: Benin (1 day), Lagos (2–3 days), Abuja (2–4 days), and other states (3–5 days).' },
-                        { question: 'Can I return an item?', answer: 'Yes, we accept returns within 7 days of receipt. Items must be unused, unwashed, with original tags.' }
-                    ]
-                },
-                support: {
-                    title: 'Still Need Help?',
-                    subtitle: 'Our customer care team is ready to assist you.',
-                    hours: 'Monday – Saturday | 8:00 AM – 6:00 PM'
-                }
-            };
-            res.json({ success: true, content: defaultContent });
-        }
-    } catch (error) {
-        console.error('Get about content error:', error);
-        res.status(500).json({ success: false, message: 'Failed to fetch about content' });
-    }
-});
-
-app.put('/api/admin/about-content', async (req, res) => {
-    try {
-        const { content } = req.body;
-        if (!content) {
-            return res.status(400).json({ success: false, message: 'Content is required' });
-        }
-        const { data: existing, error: checkError } = await supabase
-            .from('about_content')
-            .select('id')
-            .limit(1)
-            .maybeSingle();
-        if (checkError) throw checkError;
-        let result;
-        if (existing) {
-            result = await supabase
-                .from('about_content')
-                .update({ 
-                    content: content,
-                    updated_at: new Date().toISOString()
-                })
-                .eq('id', existing.id)
-                .select('*')
-                .single();
-        } else {
-            result = await supabase
-                .from('about_content')
-                .insert([{ 
-                    content: content,
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString()
-                }])
-                .select('*')
-                .single();
-        }
-        if (result.error) throw result.error;
-        res.json({ success: true, message: 'About content updated successfully', content: result.data });
-    } catch (error) {
-        console.error('Update about content error:', error);
-        res.status(500).json({ success: false, message: 'Failed to update about content' });
-    }
-});
-
-// ============================================
-// ROUTES - API Only
-// ============================================
-
-// Product Routes
-app.get('/api/products', productController.getAllProducts);
-app.get('/api/products/search', productController.searchProducts);
-app.get('/api/products/category/:category', productController.getProductsByCategory);
-app.get('/api/products/:id', productController.getProductById);
-app.get('/api/products/:id/reviews', productController.getProductReviews);
+// Products
+app.get('/api/products', productController.getAll);
+app.get('/api/products/search', productController.search);
+app.get('/api/products/category/:category', productController.getByCategory);
+app.get('/api/products/:id', productController.getById);
+app.get('/api/products/:id/reviews', productController.getReviews);
 app.post('/api/products/:id/reviews', productController.addReview);
 
-// Cart Routes
+// Cart
 app.get('/api/cart', cartController.getCart);
 app.post('/api/cart/add', cartController.addToCart);
-app.put('/api/cart/update', cartController.updateCartItem);
-app.delete('/api/cart/remove/:productId', cartController.removeFromCart);
-app.delete('/api/cart/clear', cartController.clearCart);
+app.put('/api/cart/update', cartController.updateItem);
+app.delete('/api/cart/remove/:itemId', cartController.removeItem);
+app.delete('/api/cart/clear', cartController.clear);
 
-// Wishlist Routes
-app.get('/api/wishlist', wishlistController.getWishlist);
-app.post('/api/wishlist/toggle', wishlistController.toggleWishlist);
-app.delete('/api/wishlist/remove/:productId', wishlistController.removeFromWishlist);
+// Wishlist — handled entirely client-side (localStorage). No API needed.
+// (Kept out on purpose; your frontend already has the toggle UI.)
 
-// Order Routes
+// Orders
 app.post('/api/orders/guest', validations.guestOrder, orderController.createGuestOrder);
-app.get('/api/orders/track', orderController.getOrderById);
-app.get('/api/orders/email', orderController.getOrdersByEmail);
+app.get('/api/orders/track', orderController.trackOrder);
+
+// Newsletter
+app.post('/api/newsletter/subscribe', newsletterController.subscribe);
 
 // ============================================
-// ROOT & HEALTH ROUTES
+// HEALTH & ROOT
 // ============================================
-
 app.get('/health', (req, res) => {
-    res.status(200).json({ 
-        status: 'ok', 
-        service: 'MAXIFLAIR.NG API',
-        timestamp: new Date().toISOString()
-    });
+  res.json({ status: 'ok', service: 'MAXIFLAIR.NG API', timestamp: new Date().toISOString() });
 });
 
 app.get('/', (req, res) => {
-    res.status(200).json({
-        service: 'MAXIFLAIR.NG API',
-        version: '1.0.0',
-        status: 'running',
-        endpoints: {
-            products: '/api/products',
-            cart: '/api/cart',
-            wishlist: '/api/wishlist',
-            orders: '/api/orders',
-            admin: '/api/admin/about-content'
-        },
-        frontend: 'https://maxi-flair.vercel.app'
-    });
-});
-
-// ============================================
-// ERROR HANDLING
-// ============================================
-
-// 404 handler - API only
-app.use((req, res) => {
-    res.status(404).json({ 
-        success: false, 
-        message: 'API endpoint not found',
-        hint: 'This is a backend API server. Frontend is at https://maxi-flair.vercel.app'
-    });
-});
-
-// Global error handler
-app.use((err, req, res, next) => {
-    console.error('Error:', err);
-    const status = err.status || 500;
-    const message = err.message || 'Internal Server Error';
-    res.status(status).json({
-        success: false,
-        message: message,
-        ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-    });
-});
-
-// ============================================
-// SERVER START
-// ============================================
-
-const startServer = async () => {
-    try {
-        const { data, error } = await supabase.from('products').select('count').limit(1);
-        if (error) {
-            console.error('❌ Supabase connection error:', error.message);
-            console.log('⚠️  Please check your Supabase credentials in .env file');
-            process.exit(1);
-        }
-        
-        console.log('✅ Connected to Supabase database');
-
-        app.listen(PORT, () => {
-            console.log(`🚀 MAXIFLAIR.NG API Server running on port ${PORT}`);
-            console.log(`📦 Environment: ${process.env.NODE_ENV || 'development'}`);
-            console.log(`🔗 API URL: https://maxi-flair.onrender.com/api`);
-            console.log(`🌐 Frontend: https://maxi-flair.vercel.app`);
-        });
-    } catch (err) {
-        console.error('❌ Server startup error:', err.message);
-        process.exit(1);
+  res.json({
+    service: 'MAXIFLAIR.NG API',
+    version: '2.0.0',
+    status: 'running',
+    mode: 'guest-only',
+    endpoints: {
+      products: 'GET /api/products',
+      product: 'GET /api/products/:id',
+      search: 'GET /api/products/search?q=',
+      reviews: 'GET|POST /api/products/:id/reviews',
+      cart: 'GET /api/cart',
+      cartAdd: 'POST /api/cart/add',
+      cartUpdate: 'PUT /api/cart/update',
+      cartRemove: 'DELETE /api/cart/remove/:itemId',
+      orderCreate: 'POST /api/orders/guest',
+      orderTrack: 'GET /api/orders/track?code=TRK-XXXX',
+      newsletter: 'POST /api/newsletter/subscribe'
     }
+  });
+});
+
+// ============================================
+// 404 & ERROR HANDLERS
+// ============================================
+app.use((req, res) => {
+  res.status(404).json({ success: false, message: 'API endpoint not found' });
+});
+
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || 'Internal Server Error',
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+  });
+});
+
+// ============================================
+// START
+// ============================================
+const startServer = async () => {
+  try {
+    const { error } = await supabase.from('products').select('id').limit(1);
+    if (error) {
+      console.error('❌ Supabase connection error:', error.message);
+      process.exit(1);
+    }
+    console.log('✅ Connected to Supabase');
+
+    app.listen(PORT, () => {
+      console.log(`🚀 MAXIFLAIR.NG API running on port ${PORT}`);
+      console.log(`📦 Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`🌐 Allowed origins: ${allowedOrigins.join(', ')}`);
+    });
+  } catch (err) {
+    console.error('❌ Startup error:', err.message);
+    process.exit(1);
+  }
 };
 
-if (require.main === module) {
-    startServer();
-}
-
+if (require.main === module) startServer();
 module.exports = app;

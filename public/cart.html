@@ -3,17 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
-  <title>Cart – MAXIFLAIR.NG</title>
+  <title>Checkout – MAXIFLAIR.NG</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
       font-family: 'Inter', sans-serif;
@@ -23,14 +19,9 @@
       padding-bottom: 72px;
     }
 
-    .container {
-      max-width: 1280px;
-      margin: 0 auto;
-      padding: 0 1rem;
-    }
+    .container { max-width: 1280px; margin: 0 auto; padding: 0 1rem; }
 
     .flex { display: flex; }
-    .flex-col { flex-direction: column; }
     .items-center { align-items: center; }
     .justify-between { justify-content: space-between; }
     .justify-center { justify-content: center; }
@@ -43,21 +34,13 @@
     .text-gold { color: #b8860b; }
     .text-white { color: #fff; }
     .bg-white { background: #fff; }
-    .bg-cream { background: #fdfaf7; }
     .bg-cream-100 { background: #f5ede6; }
     .bg-ink { background: #1e1a1a; }
     .bg-gold { background: #b8860b; }
     .border { border: 1px solid #e2d6ca; }
-    .border-b { border-bottom: 1px solid #ece2d8; }
-    .border-t { border-top: 1px solid #ece2d8; }
     .shadow-soft { box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06); }
     .hidden { display: none !important; }
     .mt-2 { margin-top: 0.5rem; }
-    .mt-4 { margin-top: 1rem; }
-    .mb-2 { margin-bottom: 0.5rem; }
-    .mb-4 { margin-bottom: 1rem; }
-    .gap-2 { gap: 0.5rem; }
-    .gap-4 { gap: 1rem; }
 
     .btn-dark {
       background: #1e1a1a;
@@ -76,11 +59,12 @@
       text-align: center;
     }
     .btn-dark:hover { background: #b8860b; }
+    .btn-dark:disabled { opacity: 0.6; cursor: not-allowed; }
     .btn-outline-ink {
       background: transparent;
       border: 1px solid #1e1a1a;
       color: #1e1a1a;
-      padding: 0.5rem 1rem;
+      padding: 0.6rem 1.5rem;
       font-size: 0.7rem;
       font-weight: 600;
       letter-spacing: 0.1em;
@@ -93,10 +77,7 @@
       justify-content: center;
       gap: 0.4rem;
     }
-    .btn-outline-ink:hover {
-      background: #1e1a1a;
-      color: #fff;
-    }
+    .btn-outline-ink:hover { background: #1e1a1a; color: #fff; }
 
     .top-banner {
       background: #1e1a1a;
@@ -149,11 +130,7 @@
     }
     .nav-links a:hover { color: #b8860b; }
 
-    .header-icons {
-      display: flex;
-      align-items: center;
-      gap: 1.2rem;
-    }
+    .header-icons { display: flex; align-items: center; gap: 1.2rem; }
     .header-icons button, .header-icons a {
       background: none;
       border: none;
@@ -237,12 +214,7 @@
       transition: 0.1s;
     }
     .search-result-item:hover { background: #f5ede6; }
-    .search-result-item img {
-      width: 40px;
-      height: 40px;
-      object-fit: cover;
-      border-radius: 4px;
-    }
+    .search-result-item img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
     .search-result-item .info { font-size: 0.85rem; }
     .search-result-item .info small { color: #5a4e4e; }
 
@@ -365,6 +337,13 @@
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
     }
+    .spinner.white {
+      border-color: rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      width: 18px;
+      height: 18px;
+      border-width: 2px;
+    }
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
@@ -373,7 +352,7 @@
     .checkout-success {
       max-width: 768px;
       margin: 0 auto;
-      padding: 5rem 1rem;
+      padding: 4rem 1rem;
       text-align: center;
       min-height: 60vh;
       display: flex;
@@ -382,29 +361,104 @@
       justify-content: center;
     }
     .checkout-success .icon {
-      font-size: 3.5rem;
+      font-size: 4rem;
       color: #22c55e;
       margin-bottom: 1.5rem;
+      animation: pop 0.4s ease-out;
+    }
+    @keyframes pop {
+      0% { transform: scale(0.5); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
     }
     .checkout-success h1 {
       font-family: 'Playfair Display', serif;
       font-size: 2.5rem;
       color: #1e1a1a;
-      margin-bottom: 1rem;
+      margin-bottom: 0.5rem;
     }
-    .checkout-success p {
+    .checkout-success > p {
       color: #5a4e4e;
-      max-width: 400px;
+      max-width: 480px;
       margin-bottom: 2rem;
     }
-    .checkout-success .order-number {
-      background: #f5ede6;
-      padding: 0.5rem 1.5rem;
-      border-radius: 4px;
-      font-size: 0.9rem;
-      font-weight: 600;
-      margin-bottom: 1.5rem;
+
+    .order-details-box {
+      background: #fcf8f4;
+      border: 1px solid #ece2d8;
+      border-radius: 10px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      width: 100%;
+      max-width: 520px;
+      text-align: left;
     }
+    .order-details-box .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #f0e8e0;
+      font-size: 0.9rem;
+    }
+    .order-details-box .row:last-child { border-bottom: none; }
+    .order-details-box .row .label {
+      color: #5a4e4e;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .order-details-box .row .value {
+      font-weight: 600;
+      color: #1e1a1a;
+    }
+
+    .tracking-highlight {
+      background: #1e1a1a;
+      color: #fff;
+      padding: 1.2rem 1.5rem;
+      border-radius: 10px;
+      margin-bottom: 1.5rem;
+      width: 100%;
+      max-width: 520px;
+    }
+    .tracking-highlight .label {
+      font-size: 0.7rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: #d4af37;
+      margin-bottom: 0.5rem;
+    }
+    .tracking-highlight .code-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+    .tracking-highlight code {
+      font-family: 'SF Mono', 'Monaco', monospace;
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      color: #fff;
+      background: rgba(255,255,255,0.08);
+      padding: 0.4rem 1rem;
+      border-radius: 6px;
+    }
+    .tracking-highlight .copy-code-btn {
+      background: #b8860b;
+      color: #fff;
+      border: none;
+      padding: 0.4rem 1rem;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .tracking-highlight .copy-code-btn:hover { background: #d4af37; }
 
     .checkout-layout {
       max-width: 1280px;
@@ -479,6 +533,7 @@
     .checkout-form input:focus,
     .checkout-form select:focus,
     .checkout-form textarea:focus { border-color: #b8860b; }
+    .checkout-form input.invalid { border-color: #dc3545; }
     .checkout-form .btn-submit {
       width: 100%;
       background: #1e1a1a;
@@ -493,12 +548,13 @@
       transition: 0.2s;
       margin-top: 1.5rem;
       border-radius: 4px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
     }
     .checkout-form .btn-submit:hover { background: #b8860b; }
-    .checkout-form .btn-submit:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
+    .checkout-form .btn-submit:disabled { opacity: 0.6; cursor: not-allowed; }
 
     .payment-option {
       display: flex;
@@ -579,11 +635,7 @@
       border-radius: 4px;
       overflow: hidden;
     }
-    .summary-item .thumb img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
+    .summary-item .thumb img { width: 100%; height: 100%; object-fit: cover; }
     .summary-item .thumb .qty-badge {
       position: absolute;
       top: -0.5rem;
@@ -605,19 +657,9 @@
       flex-direction: column;
       justify-content: center;
     }
-    .summary-item .details .name {
-      font-size: 0.85rem;
-      font-weight: 500;
-    }
-    .summary-item .details .meta {
-      font-size: 0.7rem;
-      color: #5a4e4e;
-    }
-    .summary-item .details .price {
-      font-size: 0.85rem;
-      font-weight: 600;
-      margin-top: 0.2rem;
-    }
+    .summary-item .details .name { font-size: 0.85rem; font-weight: 500; }
+    .summary-item .details .meta { font-size: 0.7rem; color: #5a4e4e; }
+    .summary-item .details .price { font-size: 0.85rem; font-weight: 600; margin-top: 0.2rem; }
 
     .summary-totals {
       border-top: 1px solid #ece2d8;
@@ -632,6 +674,12 @@
     }
     .summary-totals .row .label { color: #5a4e4e; }
     .summary-totals .row .value { font-weight: 500; }
+    .summary-totals .row .value.free { color: #22c55e; font-weight: 600; }
+    .summary-totals .row.hint {
+      font-size: 0.75rem;
+      color: #b8860b;
+      font-style: italic;
+    }
 
     .summary-grand {
       display: flex;
@@ -663,11 +711,28 @@
       padding: 0.8rem 1rem;
       margin-bottom: 1rem;
     }
-    .guest-notice p {
-      font-size: 0.85rem;
-      color: #5a4e4e;
-    }
+    .guest-notice p { font-size: 0.85rem; color: #5a4e4e; }
     .guest-notice p i { color: #b8860b; margin-right: 0.3rem; }
+
+    /* Empty state */
+    .empty-cart {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 4rem 1rem;
+      text-align: center;
+    }
+    .empty-cart i {
+      font-size: 3.5rem;
+      color: #ddd0c2;
+      margin-bottom: 1rem;
+      display: block;
+    }
+    .empty-cart h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+    }
+    .empty-cart p { color: #5a4e4e; margin-bottom: 1.5rem; }
 
     /* Notification */
     .notification {
@@ -684,17 +749,9 @@
       transition: transform 0.4s ease;
       max-width: 350px;
     }
-    .notification.show {
-      transform: translateX(0);
-    }
-    .notification .title {
-      font-weight: 600;
-      font-size: 0.9rem;
-    }
-    .notification .message {
-      font-size: 0.8rem;
-      color: #d4af37;
-    }
+    .notification.show { transform: translateX(0); }
+    .notification .title { font-weight: 600; font-size: 0.9rem; }
+    .notification .message { font-size: 0.8rem; color: #d4af37; }
     .notification.error .message { color: #f87171; }
     @media (max-width: 767px) {
       .notification {
@@ -703,45 +760,6 @@
         right: 10px;
         left: 10px;
         max-width: none;
-      }
-    }
-
-    /* API Status */
-    .api-status {
-      position: fixed;
-      bottom: 100px;
-      left: 20px;
-      padding: 0.5rem 1rem;
-      border-radius: 20px;
-      font-size: 0.7rem;
-      font-weight: 600;
-      z-index: 100;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-    .api-status.online {
-      background: #d4edda;
-      color: #155724;
-    }
-    .api-status.offline {
-      background: #f8d7da;
-      color: #721c24;
-    }
-    .api-status .dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      display: inline-block;
-    }
-    .api-status.online .dot { background: #28a745; }
-    .api-status.offline .dot { background: #dc3545; }
-    @media (max-width: 767px) {
-      .api-status {
-        bottom: 80px;
-        left: 10px;
-        font-size: 0.6rem;
-        padding: 0.3rem 0.7rem;
       }
     }
 
@@ -756,7 +774,7 @@
 <!-- HEADER -->
 <header class="navbar">
   <div class="navbar-inner">
-    <button id="menuToggle" style="background:none; border:none; font-size:1.4rem; color:#1e1a1a; padding:0.25rem; display:block;" class="md:hidden">
+    <button id="menuToggle" style="background:none; border:none; font-size:1.4rem; color:#1e1a1a; padding:0.25rem;">
       <i class="fas fa-bars"></i>
     </button>
 
@@ -770,7 +788,7 @@
     </nav>
 
     <div class="header-icons">
-      <div class="relative" style="position:relative;">
+      <div class="relative">
         <button id="searchToggle"><i class="fas fa-search"></i></button>
         <div id="searchDropdown" class="search-dropdown">
           <input type="text" id="searchInput" placeholder="Search products..." />
@@ -807,7 +825,6 @@
 <!-- MAIN: CHECKOUT -->
 <main>
   <div id="checkoutApp">
-    <!-- Loading State -->
     <div id="loadingState" class="text-center py-8">
       <div class="spinner"></div>
       <p class="text-ink-muted mt-2">Loading checkout...</p>
@@ -819,12 +836,6 @@
 <div id="notification" class="notification">
   <div class="title" id="notifTitle">Checkout</div>
   <div class="message" id="notifMessage">Processing your order...</div>
-</div>
-
-<!-- API Status -->
-<div class="api-status" id="apiStatus">
-  <span class="dot"></span>
-  <span id="apiStatusLabel">Checking connection...</span>
 </div>
 
 <!-- FOOTER -->
@@ -866,48 +877,37 @@
 
 <script>
   // ============================================
-  // API HELPER - GUEST ONLY
+  // CONFIG
   // ============================================
-  const API = {
-    base: '/api',
-
-    async get(endpoint) {
-      try {
-        const res = await fetch(`${this.base}${endpoint}`, {
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' }
-        });
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-        }
-        return await res.json();
-      } catch (error) {
-        console.error('API Error:', error);
-        throw error;
-      }
-    },
-
-    async post(endpoint, data) {
-      try {
-        const res = await fetch(`${this.base}${endpoint}`, {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data)
-        });
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-        }
-        return await res.json();
-      } catch (error) {
-        console.error('API Error:', error);
-        throw error;
-      }
-    }
-  };
+  const API_BASE = 'https://maxi-flair.onrender.com/api';
+  const WISHLIST_KEY = 'mxf_wishlist';
 
   // ============================================
-  // TOAST NOTIFICATION
+  // API HELPERS
+  // ============================================
+  async function apiGet(path) {
+    const res = await fetch(`${API_BASE}${path}`, {
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.message || `HTTP ${res.status}`);
+    return data;
+  }
+  async function apiPost(path, body) {
+    const res = await fetch(`${API_BASE}${path}`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.message || `HTTP ${res.status}`);
+    return data;
+  }
+
+  // ============================================
+  // TOAST
   // ============================================
   function showToast(message, type = 'success') {
     const notif = document.getElementById('notification');
@@ -916,266 +916,225 @@
     notif.className = `notification ${type === 'success' ? '' : 'error'}`;
     notif.classList.add('show');
     clearTimeout(window.toastTimeout);
-    window.toastTimeout = setTimeout(() => {
-      notif.classList.remove('show');
-    }, 4000);
+    window.toastTimeout = setTimeout(() => notif.classList.remove('show'), 4000);
   }
 
   // ============================================
-  // CHECKOUT CONTROLLER - GUEST ONLY
+  // WISHLIST BADGE (localStorage)
+  // ============================================
+  function updateWishlistBadge() {
+    let count = 0;
+    try {
+      const raw = localStorage.getItem(WISHLIST_KEY);
+      count = raw ? (JSON.parse(raw) || []).length : 0;
+    } catch { count = 0; }
+    ['wishlistBadge', 'wishlistBadgeMobile'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.textContent = count;
+        el.style.display = count > 0 ? 'flex' : 'none';
+      }
+    });
+  }
+
+  // ============================================
+  // CHECKOUT CONTROLLER
   // ============================================
   const CheckoutController = {
     cart: [],
-    isGuest: true,
-    step: 1, // 1: Shipping, 2: Payment, 3: Success
-    shippingCost: 2500,
-    orderNumber: null,
+    step: 1, // 1 = shipping, 2 = payment, 3 = success
+    shippingCost: 3500,
+    subtotal: 0,
+    freeThreshold: 50000,
+    order: null, // full order object from backend
 
     async init() {
-      await this.checkAPIStatus();
+      updateWishlistBadge();
       await this.loadCart();
       this.renderCheckout();
       this.setupEventListeners();
     },
 
-    async checkAPIStatus() {
-      const statusEl = document.getElementById('apiStatus');
-      const labelEl = document.getElementById('apiStatusLabel');
-
-      try {
-        const response = await fetch('/api/cart', {
-          credentials: 'include'
-        });
-
-        if (response.ok) {
-          statusEl.className = 'api-status online';
-          labelEl.textContent = '✅ Database Connected';
-        } else {
-          statusEl.className = 'api-status offline';
-          labelEl.textContent = '❌ Server Offline';
-        }
-      } catch (error) {
-        statusEl.className = 'api-status offline';
-        labelEl.textContent = '❌ Connection Failed';
-        console.error('API Status Check Failed:', error);
-      }
-    },
-
     async loadCart() {
+      const loading = document.getElementById('loadingState');
       try {
-        const data = await API.get('/cart');
-
+        const data = await apiGet('/cart');
         if (data.success && data.cart) {
           this.cart = data.cart.items || [];
-          this.isGuest = data.isGuest !== false;
+          this.subtotal = data.cart.subtotal || this.cart.reduce(
+            (s, i) => s + (Number(i.price) * i.quantity), 0
+          );
+          // Shipping already computed by backend — use it!
+          this.shippingCost = typeof data.cart.shipping_fee === 'number'
+            ? data.cart.shipping_fee
+            : (this.subtotal >= this.freeThreshold ? 0 : this.shippingCost);
         } else {
           this.cart = [];
         }
-
-        document.getElementById('loadingState').classList.add('hidden');
-
-        if (this.cart.length === 0) {
-          showToast('Your cart is empty. Please add items first.', 'error');
-          setTimeout(() => {
-            window.location.href = '/shop';
-          }, 2000);
-        }
-
-      } catch (error) {
-        console.error('Failed to load cart:', error);
+      } catch (err) {
+        console.error('Load cart error:', err);
         this.cart = [];
-        document.getElementById('loadingState').classList.add('hidden');
-        showToast('Failed to load cart. Please refresh.', 'error');
+      } finally {
+        loading.classList.add('hidden');
+        this.updateCartBadge();
       }
+    },
+
+    updateCartBadge() {
+      const count = this.cart.reduce((s, i) => s + (i.quantity || 1), 0);
+      ['cartBadge', 'cartBadgeMobile'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.textContent = count;
+          el.style.display = count > 0 ? 'flex' : 'none';
+        }
+      });
     },
 
     renderCheckout() {
       const container = document.getElementById('checkoutApp');
-      const cartTotal = this.getCartTotal();
 
-      if (this.cart.length === 0 && this.step !== 3) {
+      // ---- SUCCESS STEP ----
+      if (this.step === 3 && this.order) {
+        container.innerHTML = this.renderSuccess();
+        this.bindCopyButton();
+        return;
+      }
+
+      // ---- EMPTY CART ----
+      if (this.cart.length === 0) {
         container.innerHTML = `
-          <div style="max-width:1280px;margin:0 auto;padding:4rem 1rem;text-align:center;">
-            <i class="fas fa-shopping-bag" style="font-size:3rem;color:#ddd0c2;margin-bottom:1rem;display:block;"></i>
-            <p style="color:#5a4e4e;">Your cart is empty.</p>
-            <a href="/shop" class="btn-dark" style="margin-top:1rem;display:inline-block;">Continue Shopping</a>
+          <div class="empty-cart">
+            <i class="fas fa-shopping-bag"></i>
+            <h2>Your cart is empty</h2>
+            <p>Add some items to your cart before checking out.</p>
+            <a href="shop.html" class="btn-dark">Continue Shopping</a>
           </div>
         `;
         return;
       }
 
-      // SUCCESS STEP
-      if (this.step === 3) {
-        container.innerHTML = `
-          <div class="checkout-success">
-            <div class="icon"><i class="fas fa-check-circle"></i></div>
-            <h1>Order Confirmed! 🎉</h1>
-            <div class="order-number">Order #${this.orderNumber || 'MXF-' + String(Math.floor(10000 + Math.random() * 90000))}</div>
-            <p>Thank you for shopping with MAXIFLAIR.NG. We've sent a confirmation email with your order details. You can track your order anytime.</p>
-            <div style="display:flex;gap:1rem;flex-wrap:wrap;justify-content:center;">
-              <a href="/shop" class="btn-dark">Continue Shopping</a>
-              <a href="/track-order.html" class="btn-outline-ink">Track Order</a>
-            </div>
-          </div>
-        `;
-        return;
-      }
-
-      // SHIPPING or PAYMENT
-      const total = cartTotal + this.shippingCost;
+      // ---- SHIPPING / PAYMENT ----
+      const total = this.subtotal + this.shippingCost;
 
       container.innerHTML = `
         <div class="checkout-layout">
-          <!-- Form -->
           <div class="checkout-form-wrap">
             <div class="progress-steps">
               <span class="step ${this.step === 1 ? 'active' : 'done'}">1. Shipping</span>
               <span class="line"></span>
               <span class="step ${this.step === 2 ? 'active' : ''}">2. Payment</span>
             </div>
-
             <div class="checkout-form" id="checkoutForm">
               ${this.step === 1 ? this.renderShippingForm() : this.renderPaymentForm(total)}
             </div>
           </div>
 
-          <!-- Summary -->
           <div class="checkout-summary">
             <div class="summary-card">
               <h3>Order Summary</h3>
               <div class="summary-items">
-                ${this.cart.map(item => {
-                  const name = item.product_name || item.name || 'Product';
-                  const price = item.effective_price || item.product_price || item.price || 0;
-                  const imageUrl = item.image_url || (item.product && item.product.images && item.product.images[0]) || 'https://via.placeholder.com/300x400';
-                  const size = item.size || 'N/A';
-                  const color = item.color || 'N/A';
-                  const quantity = item.quantity || 1;
-                  return `
-                    <div class="summary-item">
-                      <div class="thumb">
-                        <img src="${imageUrl}" alt="${name}" loading="lazy" />
-                        <span class="qty-badge">${quantity}</span>
-                      </div>
-                      <div class="details">
-                        <div class="name">${name}</div>
-                        <div class="meta">${size} / ${color}</div>
-                        <div class="price">${this.formatPrice(price * quantity)}</div>
-                      </div>
-                    </div>
-                  `;
-                }).join('')}
+                ${this.cart.map(item => this.renderSummaryItem(item)).join('')}
               </div>
-
               <div class="summary-totals">
-                <div class="row"><span class="label">Subtotal</span><span class="value">${this.formatPrice(cartTotal)}</span></div>
-                <div class="row"><span class="label">Shipping</span><span class="value">${this.formatPrice(this.shippingCost)}</span></div>
+                <div class="row">
+                  <span class="label">Subtotal</span>
+                  <span class="value">${this.fmt(this.subtotal)}</span>
+                </div>
+                <div class="row">
+                  <span class="label">Shipping</span>
+                  ${this.shippingCost === 0
+                    ? '<span class="value free">FREE</span>'
+                    : `<span class="value">${this.fmt(this.shippingCost)}</span>`}
+                </div>
+                ${this.subtotal > 0 && this.subtotal < this.freeThreshold ? `
+                  <div class="row hint">
+                    Add ${this.fmt(this.freeThreshold - this.subtotal)} more for FREE delivery
+                  </div>
+                ` : ''}
               </div>
-
               <div class="summary-grand">
                 <span class="label">Total</span>
-                <span class="value">${this.formatPrice(total)}</span>
+                <span class="value">${this.fmt(total)}</span>
               </div>
             </div>
           </div>
         </div>
       `;
 
-      // ----- Event bindings -----
-      // Shipping form
-      if (this.step === 1) {
-        const form = document.getElementById('shippingForm');
-        if (form) {
-          form.addEventListener('submit', (e) => {
-            e.preventDefault();
-            // Validate required fields
-            const required = form.querySelectorAll('[required]');
-            let valid = true;
-            required.forEach(field => {
-              if (!field.value.trim()) {
-                field.style.borderColor = '#dc3545';
-                valid = false;
-              } else {
-                field.style.borderColor = '';
-              }
-            });
-            if (valid) {
-              this.step = 2;
-              this.renderCheckout();
-            } else {
-              showToast('Please fill in all required fields.', 'error');
-            }
-          });
-          
-          // Remove error border on input
-          form.querySelectorAll('input, select').forEach(field => {
-            field.addEventListener('input', () => {
-              field.style.borderColor = '';
-            });
-          });
-        }
-      }
+      this.bindStepEvents();
+    },
 
-      // Payment form
-      if (this.step === 2) {
-        const payBtn = document.getElementById('payBtn');
-        if (payBtn) {
-          payBtn.addEventListener('click', () => {
-            this.placeOrder();
-          });
-        }
-        const backBtn = document.getElementById('backToShipping');
-        if (backBtn) {
-          backBtn.addEventListener('click', () => {
-            this.step = 1;
-            this.renderCheckout();
-          });
-        }
-        // Payment radio styling
-        document.querySelectorAll('.payment-option input[type="radio"]').forEach(radio => {
-          radio.addEventListener('change', function() {
-            document.querySelectorAll('.payment-option').forEach(opt => opt.classList.remove('selected'));
-            this.closest('.payment-option').classList.add('selected');
-          });
-        });
-        const firstRadio = document.querySelector('.payment-option input[type="radio"]');
-        if (firstRadio) {
-          firstRadio.checked = true;
-          firstRadio.closest('.payment-option').classList.add('selected');
-        }
-      }
+    renderSummaryItem(item) {
+      const name = item.name || item.product_name || 'Product';
+      const price = Number(item.price || item.unit_price || item.product_price || 0);
+      const qty = item.quantity || 1;
+      const img = item.image_url || 'https://via.placeholder.com/300x400';
+      const variant = [
+        item.size ? `Size: ${item.size}` : '',
+        item.color ? `Color: ${item.color}` : ''
+      ].filter(Boolean).join(' · ') || '—';
 
-      this.updateBadges();
+      return `
+        <div class="summary-item">
+          <div class="thumb">
+            <img src="${img}" alt="${name}" loading="lazy" />
+            <span class="qty-badge">${qty}</span>
+          </div>
+          <div class="details">
+            <div class="name">${name}</div>
+            <div class="meta">${variant}</div>
+            <div class="price">${this.fmt(price * qty)}</div>
+          </div>
+        </div>
+      `;
     },
 
     renderShippingForm() {
       return `
         <h2>Shipping Information</h2>
         <div class="guest-notice">
-          <p><i class="fas fa-user"></i> You're checking out as a guest. Your order will be linked to your email for tracking.</p>
+          <p><i class="fas fa-info-circle"></i> No account needed. We'll send your tracking code to this email.</p>
         </div>
-        <form id="shippingForm">
+        <form id="shippingForm" novalidate>
           <div class="form-grid">
-            <div><label>First Name *</label><input type="text" id="firstName" required placeholder="John" /></div>
-            <div><label>Last Name *</label><input type="text" id="lastName" required placeholder="Doe" /></div>
-            <div class="field-full"><label>Email Address *</label><input type="email" id="email" required placeholder="you@example.com" /></div>
-            <div class="field-full"><label>Phone Number *</label><input type="tel" id="phone" required placeholder="+234 800 000 0000" /></div>
             <div class="field-full">
-              <label>Delivery Address *</label>
-              <input type="text" id="addressLine1" placeholder="Street Address" required style="margin-bottom:0.75rem;" />
-              <input type="text" id="addressLine2" placeholder="Apartment, suite, etc. (optional)" />
+              <label for="fullName">Full Name *</label>
+              <input type="text" id="fullName" required placeholder="Jane Doe" autocomplete="name" />
             </div>
-            <div><label>State *</label>
+            <div class="field-full">
+              <label for="email">Email Address *</label>
+              <input type="email" id="email" required placeholder="you@example.com" autocomplete="email" />
+            </div>
+            <div class="field-full">
+              <label for="phone">Phone Number *</label>
+              <input type="tel" id="phone" required placeholder="+234 800 000 0000" autocomplete="tel" />
+            </div>
+            <div class="field-full">
+              <label for="addressLine1">Delivery Address *</label>
+              <input type="text" id="addressLine1" placeholder="Street address" required autocomplete="street-address" style="margin-bottom:0.75rem;" />
+              <input type="text" id="addressLine2" placeholder="Apartment, suite, etc. (optional)" autocomplete="address-line2" />
+            </div>
+            <div>
+              <label for="stateSelect">State *</label>
               <select id="stateSelect" required>
+                <option value="">Select state</option>
                 <option value="Lagos">Lagos</option>
                 <option value="Abuja">Abuja (FCT)</option>
                 <option value="Rivers">Rivers</option>
-                <option value="Delta">Delta (Asaba)</option>
+                <option value="Delta">Delta</option>
                 <option value="Edo">Edo (Benin)</option>
-                <option value="Other">Other States</option>
+                <option value="Oyo">Oyo</option>
+                <option value="Kano">Kano</option>
+                <option value="Enugu">Enugu</option>
+                <option value="Anambra">Anambra</option>
+                <option value="Other">Other</option>
               </select>
             </div>
-            <div><label>City / LGA *</label><input type="text" id="city" required placeholder="City" /></div>
+            <div>
+              <label for="city">City / LGA *</label>
+              <input type="text" id="city" required placeholder="City" autocomplete="address-level2" />
+            </div>
           </div>
           <button type="submit" class="btn-submit">Continue to Payment</button>
         </form>
@@ -1186,156 +1145,250 @@
       return `
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">
           <h2 style="margin:0;">Payment Method</h2>
-          <button id="backToShipping" style="background:none;border:none;color:#5a4e4e;font-size:0.75rem;text-decoration:underline;cursor:pointer;">Back to Shipping</button>
+          <button id="backToShipping" type="button" style="background:none;border:none;color:#5a4e4e;font-size:0.75rem;text-decoration:underline;cursor:pointer;">← Back to Shipping</button>
         </div>
 
         <div class="payment-option selected">
-          <input type="radio" name="payment" value="paystack" checked />
+          <input type="radio" name="payment" value="pay_on_delivery" checked />
           <div class="label">
-            <span>Paystack (Card, Bank Transfer, USSD)</span>
+            <span>Pay on Delivery</span>
+            <i class="fas fa-money-bill-wave"></i>
+          </div>
+        </div>
+        <div class="payment-option">
+          <input type="radio" name="payment" value="bank_transfer" />
+          <div class="label">
+            <span>Bank Transfer</span>
+            <i class="fas fa-university"></i>
+          </div>
+        </div>
+        <div class="payment-option">
+          <input type="radio" name="payment" value="card" />
+          <div class="label">
+            <span>Card / Paystack</span>
             <i class="fas fa-credit-card"></i>
-          </div>
-        </div>
-        <div class="payment-option">
-          <input type="radio" name="payment" value="flutterwave" />
-          <div class="label">
-            <span>Flutterwave</span>
-            <i class="fas fa-shield-alt"></i>
-          </div>
-        </div>
-        <div class="payment-option">
-          <input type="radio" name="payment" value="bank-transfer" />
-          <div class="label">
-            <span>Direct Bank Transfer</span>
           </div>
         </div>
 
         <div class="secure-badge">
           <i class="fas fa-shield-alt"></i>
-          <p>Your payment information is processed securely. We do not store credit card details nor have access to your credit card information.</p>
+          <p>Your information is processed securely. Card payments are handled by our PCI-compliant payment partner.</p>
         </div>
 
-        <button id="payBtn" class="btn-submit">Pay ${this.formatPrice(total)}</button>
+        <button id="payBtn" class="btn-submit">
+          Place Order · ${this.fmt(total)}
+        </button>
       `;
     },
 
-    async placeOrder() {
-      try {
+    renderSuccess() {
+      const o = this.order;
+      const orderNum = o.order_number || o.id || '—';
+      const code = o.tracking_code || '—';
+      const total = Number(o.total || 0);
+      const email = document.getElementById('email')?.value || o.customer_email || '';
+
+      return `
+        <div class="checkout-success">
+          <div class="icon"><i class="fas fa-check-circle"></i></div>
+          <h1>Order Confirmed! 🎉</h1>
+          <p>Thank you for shopping with MAXIFLAIR.NG. A confirmation has been sent to your email.</p>
+
+          <div class="tracking-highlight">
+            <div class="label">Your Tracking Code</div>
+            <div class="code-row">
+              <code id="trackingCode">${code}</code>
+              <button class="copy-code-btn" id="copyCodeBtn">
+                <i class="fas fa-copy"></i> Copy
+              </button>
+            </div>
+          </div>
+
+          <div class="order-details-box">
+            <div class="row">
+              <span class="label">Order Number</span>
+              <span class="value">${orderNum}</span>
+            </div>
+            <div class="row">
+              <span class="label">Total Paid</span>
+              <span class="value">${this.fmt(total)}</span>
+            </div>
+            <div class="row">
+              <span class="label">Status</span>
+              <span class="value">${o.status || 'Pending'}</span>
+            </div>
+            ${email ? `
+            <div class="row">
+              <span class="label">Email</span>
+              <span class="value" style="font-size:0.85rem;">${email}</span>
+            </div>` : ''}
+          </div>
+
+          <p style="color:#5a4e4e;font-size:0.85rem;margin-bottom:1.5rem;">
+            Save this tracking code — you'll need it to check your order status anytime.
+          </p>
+
+          <div style="display:flex;gap:1rem;flex-wrap:wrap;justify-content:center;">
+            <a href="track-order.html?code=${code}" class="btn-dark">
+              <i class="fas fa-box"></i> Track Order
+            </a>
+            <a href="shop.html" class="btn-outline-ink">Continue Shopping</a>
+          </div>
+        </div>
+      `;
+    },
+
+    bindCopyButton() {
+      const btn = document.getElementById('copyCodeBtn');
+      const codeEl = document.getElementById('trackingCode');
+      if (!btn || !codeEl) return;
+      btn.addEventListener('click', () => {
+        navigator.clipboard.writeText(codeEl.textContent).then(() => {
+          btn.innerHTML = '<i class="fas fa-check"></i> Copied';
+          setTimeout(() => {
+            btn.innerHTML = '<i class="fas fa-copy"></i> Copy';
+          }, 2000);
+        }).catch(() => {
+          showToast('Could not copy — please copy manually.', 'error');
+        });
+      });
+    },
+
+    bindStepEvents() {
+      // ---- Step 1: Shipping form ----
+      if (this.step === 1) {
+        const form = document.getElementById('shippingForm');
+        if (form) {
+          form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const fields = ['fullName', 'email', 'phone', 'addressLine1', 'city', 'stateSelect'];
+            let valid = true;
+            fields.forEach(id => {
+              const el = document.getElementById(id);
+              if (!el) return;
+              el.classList.remove('invalid');
+              if (!el.value.trim()) {
+                el.classList.add('invalid');
+                valid = false;
+              }
+            });
+            // Email validation
+            const emailEl = document.getElementById('email');
+            if (emailEl && emailEl.value.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailEl.value)) {
+              emailEl.classList.add('invalid');
+              showToast('Please enter a valid email address.', 'error');
+              valid = false;
+            }
+            if (!valid) {
+              showToast('Please fill in all required fields.', 'error');
+              return;
+            }
+            this.step = 2;
+            this.renderCheckout();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          });
+          // Clear invalid state on typing
+          form.querySelectorAll('input, select').forEach(el => {
+            el.addEventListener('input', () => el.classList.remove('invalid'));
+          });
+        }
+      }
+
+      // ---- Step 2: Payment ----
+      if (this.step === 2) {
+        document.querySelectorAll('.payment-option').forEach(opt => {
+          opt.addEventListener('click', () => {
+            document.querySelectorAll('.payment-option').forEach(o => o.classList.remove('selected'));
+            opt.classList.add('selected');
+            const radio = opt.querySelector('input[type="radio"]');
+            if (radio) radio.checked = true;
+          });
+        });
+
+        const backBtn = document.getElementById('backToShipping');
+        if (backBtn) {
+          backBtn.addEventListener('click', () => {
+            this.step = 1;
+            this.renderCheckout();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          });
+        }
+
         const payBtn = document.getElementById('payBtn');
         if (payBtn) {
-          payBtn.disabled = true;
-          payBtn.textContent = 'Processing...';
-        }
-
-        // Get shipping info
-        const firstName = document.getElementById('firstName')?.value || '';
-        const lastName = document.getElementById('lastName')?.value || '';
-        const email = document.getElementById('email')?.value || '';
-        const phone = document.getElementById('phone')?.value || '';
-        const addressLine1 = document.getElementById('addressLine1')?.value || '';
-        const addressLine2 = document.getElementById('addressLine2')?.value || '';
-        const city = document.getElementById('city')?.value || '';
-        const state = document.getElementById('stateSelect')?.value || '';
-        const paymentMethod = document.querySelector('input[name="payment"]:checked')?.value || 'paystack';
-
-        // Validate required fields
-        if (!firstName || !lastName || !email || !phone || !addressLine1 || !city || !state) {
-          showToast('Please fill in all required fields.', 'error');
-          if (payBtn) {
-            payBtn.disabled = false;
-            payBtn.textContent = `Pay ${this.formatPrice(this.getCartTotal() + this.shippingCost)}`;
-          }
-          return;
-        }
-
-        const orderData = {
-          fullName: `${firstName} ${lastName}`,
-          email: email,
-          phone: phone,
-          address: {
-            line1: addressLine1,
-            line2: addressLine2,
-            city: city,
-            state: state,
-            postalCode: ''
-          },
-          paymentMethod: paymentMethod,
-          shippingCost: this.shippingCost,
-          discount: 0
-        };
-
-        showToast('Placing your order...', 'success');
-
-        // Guest checkout
-        const response = await API.post('/orders/guest', orderData);
-
-        if (response.success) {
-          this.orderNumber = response.order?.order_number || 'MXF-' + String(Math.floor(10000 + Math.random() * 90000));
-          this.step = 3;
-          this.renderCheckout();
-          showToast('Order placed successfully! 🎉', 'success');
-        } else {
-          showToast(response.message || 'Failed to place order.', 'error');
-          if (payBtn) {
-            payBtn.disabled = false;
-            payBtn.textContent = `Pay ${this.formatPrice(this.getCartTotal() + this.shippingCost)}`;
-          }
-        }
-      } catch (error) {
-        console.error('Place order error:', error);
-        showToast('Failed to place order. Please try again.', 'error');
-        const payBtn = document.getElementById('payBtn');
-        if (payBtn) {
-          payBtn.disabled = false;
-          payBtn.textContent = `Pay ${this.formatPrice(this.getCartTotal() + this.shippingCost)}`;
+          payBtn.addEventListener('click', () => this.placeOrder());
         }
       }
     },
 
-    getCartTotal() {
-      return this.cart.reduce((sum, item) => {
-        const price = item.effective_price || item.product_price || item.price || 0;
-        return sum + (price * (item.quantity || 1));
-      }, 0);
-    },
+    async placeOrder() {
+      const payBtn = document.getElementById('payBtn');
+      const originalText = payBtn ? payBtn.innerHTML : '';
 
-    formatPrice(price) {
-      return '₦' + Number(price).toLocaleString();
-    },
-
-    updateBadges() {
-      const count = this.cart.reduce((sum, item) => sum + (item.quantity || 1), 0);
-
-      ['cartBadge', 'cartBadgeMobile'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-          el.textContent = count;
-          el.style.display = count > 0 ? 'flex' : 'none';
+      try {
+        if (payBtn) {
+          payBtn.disabled = true;
+          payBtn.innerHTML = '<span class="spinner white"></span> Placing order...';
         }
-      });
+
+        const data = {
+          fullName: document.getElementById('fullName').value.trim(),
+          email: document.getElementById('email').value.trim(),
+          phone: document.getElementById('phone').value.trim(),
+          address: {
+            line1: document.getElementById('addressLine1').value.trim(),
+            line2: document.getElementById('addressLine2')?.value.trim() || '',
+            city: document.getElementById('city').value.trim(),
+            state: document.getElementById('stateSelect').value.trim(),
+            postalCode: ''
+          },
+          paymentMethod: document.querySelector('input[name="payment"]:checked')?.value || 'pay_on_delivery'
+        };
+
+        const res = await apiPost('/orders/guest', data);
+
+        if (res.success && res.order) {
+          this.order = res.order;
+          this.step = 3;
+          this.cart = []; // clear locally
+          this.updateCartBadge();
+          this.renderCheckout();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          showToast('Order placed successfully! 🎉', 'success');
+        } else {
+          showToast(res.message || 'Failed to place order.', 'error');
+          if (payBtn) { payBtn.disabled = false; payBtn.innerHTML = originalText; }
+        }
+      } catch (err) {
+        console.error('Place order error:', err);
+        showToast(err.message || 'Failed to place order. Please try again.', 'error');
+        if (payBtn) { payBtn.disabled = false; payBtn.innerHTML = originalText; }
+      }
+    },
+
+    fmt(v) {
+      return '₦' + Number(v || 0).toLocaleString();
     },
 
     setupEventListeners() {
-      // Mobile menu toggle
+      // Mobile menu
       const menuToggle = document.getElementById('menuToggle');
       const mobileMenu = document.getElementById('mobileMenu');
       if (menuToggle && mobileMenu) {
         menuToggle.addEventListener('click', function(e) {
           e.stopPropagation();
           mobileMenu.classList.toggle('open');
-          const icon = this.querySelector('i');
-          icon.className = mobileMenu.classList.contains('open') ? 'fas fa-times' : 'fas fa-bars';
+          this.querySelector('i').className = mobileMenu.classList.contains('open') ? 'fas fa-times' : 'fas fa-bars';
         });
         document.addEventListener('click', function(e) {
           if (!mobileMenu.contains(e.target) && !menuToggle.contains(e.target)) {
             mobileMenu.classList.remove('open');
-            const icon = menuToggle.querySelector('i');
-            if (icon) icon.className = 'fas fa-bars';
+            menuToggle.querySelector('i').className = 'fas fa-bars';
           }
         });
       }
 
-      // Search dropdown
+      // Search
       const searchToggle = document.getElementById('searchToggle');
       const searchDropdown = document.getElementById('searchDropdown');
       const searchInput = document.getElementById('searchInput');
@@ -1345,9 +1398,7 @@
         searchToggle.addEventListener('click', function(e) {
           e.stopPropagation();
           searchDropdown.classList.toggle('open');
-          if (searchDropdown.classList.contains('open')) {
-            searchInput.focus();
-          }
+          if (searchDropdown.classList.contains('open')) searchInput.focus();
         });
         document.addEventListener('click', function(e) {
           if (!searchDropdown.contains(e.target) && e.target !== searchToggle) {
@@ -1357,50 +1408,51 @@
       }
 
       if (searchInput) {
-        let searchTimeout;
+        let t;
         searchInput.addEventListener('input', function() {
-          clearTimeout(searchTimeout);
+          clearTimeout(t);
           const q = this.value.trim();
-          if (q === '') {
-            searchResults.innerHTML = '';
-            return;
-          }
-          searchTimeout = setTimeout(async () => {
+          if (!q) { searchResults.innerHTML = ''; return; }
+          t = setTimeout(async () => {
             try {
-              const data = await API.get(`/products/search?q=${encodeURIComponent(q)}`);
-              if (data.success && data.products) {
+              const data = await apiGet(`/products/search?q=${encodeURIComponent(q)}`);
+              if (data.success && data.products && data.products.length) {
                 searchResults.innerHTML = data.products.map(p => `
-                  <a href="/product/${p.id}" class="search-result-item">
-                    <img src="${p.images?.[0] || 'https://via.placeholder.com/40'}" alt="${p.name}" />
-                    <div class="info"><div>${p.name}</div><small>${p.category}</small></div>
+                  <a href="/product/${p.slug || p.id}" class="search-result-item">
+                    <img src="${(p.images && p.images[0]) || 'https://via.placeholder.com/40'}" alt="${p.name}" />
+                    <div class="info">
+                      <div>${p.name}</div>
+                      <small>₦${Number(p.sale_price || p.price).toLocaleString()}</small>
+                    </div>
                   </a>
                 `).join('');
               } else {
                 searchResults.innerHTML = '<div style="padding:0.75rem;text-align:center;color:#5a4e4e;font-size:0.85rem;">No products found</div>';
               }
-            } catch (error) {
-              console.error('Search error:', error);
+            } catch (err) {
+              searchResults.innerHTML = '<div style="padding:0.75rem;text-align:center;color:#dc3545;font-size:0.85rem;">Search unavailable</div>';
             }
           }, 300);
         });
       }
 
-      // Bottom nav active
+      // Bottom nav
       document.querySelectorAll('.bottom-nav a').forEach(link => {
         link.addEventListener('click', function() {
           document.querySelectorAll('.bottom-nav a').forEach(l => l.classList.remove('active'));
           this.classList.add('active');
         });
       });
+
+      // Wishlist sync
+      window.addEventListener('storage', (e) => {
+        if (e.key === WISHLIST_KEY) updateWishlistBadge();
+      });
+      window.addEventListener('wishlist:updated', updateWishlistBadge);
     }
   };
 
-  // ============================================
-  // INIT
-  // ============================================
-  document.addEventListener('DOMContentLoaded', () => {
-    CheckoutController.init();
-  });
+  document.addEventListener('DOMContentLoaded', () => CheckoutController.init());
 </script>
 </body>
 </html>
